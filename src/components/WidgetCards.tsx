@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { 
   ResponsiveContainer, 
   LineChart as RechartsLineChart, 
@@ -115,7 +116,7 @@ export function PieChartWidget({ title, data, dataKey, nameKey, colors }: { titl
   );
 }
 
-export function RecommendationsWidget({ recommendations }: { recommendations: { text: string, type: 'warning' | 'info' | 'action' }[] }) {
+export function RecommendationsWidget({ recommendations }: { recommendations: { text: string, type: 'warning' | 'info' | 'action', link?: string }[] }) {
   return (
     <div className="bg-gradient-to-br from-gray-900 to-black p-5 rounded-2xl border border-gray-800 shadow-lg text-white">
       <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
@@ -128,7 +129,14 @@ export function RecommendationsWidget({ recommendations }: { recommendations: { 
             <span className={`shrink-0 w-2 h-2 rounded-full mt-1.5 ${
               rec.type === 'action' ? 'bg-yupana-green' : rec.type === 'warning' ? 'bg-amber-400' : 'bg-blue-400'
             }`}></span>
-            <span className="text-gray-300 leading-relaxed">{rec.text}</span>
+            <div className="text-gray-300 leading-relaxed flex-1">
+              {rec.text}
+              {rec.link && (
+                <Link to={rec.link} className="inline-flex items-center gap-1 mt-1.5 text-yupana-green hover:underline font-medium text-xs opacity-90 hover:opacity-100 transition-opacity">
+                  Ver insight detallado &rarr;
+                </Link>
+              )}
+            </div>
           </li>
         ))}
       </ul>

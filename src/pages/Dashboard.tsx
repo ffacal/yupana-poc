@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { PieChart, LineChart, BarChart3, ArrowRight, Sparkles, HeartHandshake, MessageSquare } from 'lucide-react';
+import { RecommendationsWidget } from '../components/WidgetCards';
 import { motion } from 'framer-motion';
 
 export default function Dashboard() {
@@ -46,6 +47,12 @@ export default function Dashboard() {
     }
   ];
 
+  const globalRecommendations = [
+    { text: "Asics y Nike lideran en precio mediano, revisá la dispersión de precios para ajustar tu posicionamiento.", type: "info" as const, link: "/market-research" },
+    { text: "Alto riesgo de quiebre de stock en Racer Carbon 3 (talle 42). Sugerimos reabastecimiento inmediato.", type: "warning" as const, link: "/company-insights" },
+    { text: "El sentimiento negativo en Redes Sociales es alto. Revisa quejas sobre envíos.", type: "action" as const, link: "/customer-support" },
+  ];
+
   return (
     <div className="max-w-6xl mx-auto">
       <div className="mb-10">
@@ -55,6 +62,10 @@ export default function Dashboard() {
         <p className="text-lg text-gray-600 max-w-2xl">
           Seleccioná un módulo para comenzar a interactuar con los datos de tu negocio y el mercado. Nuestro agente de IA está listo para asistirte.
         </p>
+      </div>
+
+      <div className="mb-10">
+        <RecommendationsWidget recommendations={globalRecommendations} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
