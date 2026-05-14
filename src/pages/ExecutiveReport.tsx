@@ -1,6 +1,5 @@
-import { Link } from 'react-router-dom';
-import { DollarSign, Target, FileText, Briefcase, Package, Clock, Percent, Store } from 'lucide-react';
-import { ScoreCard, BarChartWidget, RecommendationsWidget, PieChartWidget, LineChartWidget } from '../components/WidgetCards';
+import { DollarSign, Target, FileText, Package, Clock, Percent, Store, Bot } from 'lucide-react';
+import { ScoreCard, BarChartWidget, PieChartWidget, LineChartWidget } from '../components/WidgetCards';
 import ChatPanel from '../components/ChatPanel';
 
 export default function ExecutiveReport() {
@@ -38,12 +37,25 @@ export default function ExecutiveReport() {
     { metric: 'Margen', real: 5.1, budget: 5.0 },
   ];
 
-  const alerts = [
-    { text: "Tienda 'Florida' presenta una caída del 12% frente al mes anterior. Requiere revisión de tráfico y conversión.", type: "warning" as const },
-    { text: "La marca 'Nike' presenta un 15% de Out-of-Stock en las 3 sucursales principales.", type: "action" as const },
-    { text: "Categoría 'Running' concentra un 20% del inventario con edad superior a 180 días.", type: "warning" as const },
-    { text: "Costo logístico supera el límite proyectado en un 8% este trimestre.", type: "info" as const },
-  ];
+  const renderExecutiveDebrief = () => (
+    <div className="bg-white p-6 rounded-2xl border border-blue-100 shadow-sm text-gray-700 text-sm leading-relaxed relative overflow-hidden">
+      <div className="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
+      <div className="flex items-center gap-2 mb-4 border-b border-gray-100 pb-3">
+        <div className="w-8 h-8 rounded-md flex items-center justify-center bg-blue-50 text-blue-600">
+          <Bot size={20} />
+        </div>
+        <h3 className="text-lg font-semibold text-gray-900">Debrief Analítico del Agente</h3>
+      </div>
+      
+      <p className="mb-3">El agente directivo ha consolidado los indicadores clave de rendimiento (KPIs) de esta semana. Se observa una desviación positiva en ingresos, aunque contrarrestada por alertas operativas que requieren atención inmediata:</p>
+      <ul className="list-disc pl-5 mb-3 space-y-1">
+        <li><strong>Desempeño de Tiendas (2 Críticas):</strong> La sucursal 'Florida' registra una severa caída en sell-through (55% vs objetivo del 70%) y contracción de ventas del 12%; por otro lado, 'Abasto' (68%) entra en zona de riesgo al no alcanzar las cuotas proyectadas. Requieren revisión de tráfico y conversión.</li>
+        <li><strong>Salud de Inventario:</strong> La categoría 'Running' inmoviliza capital con un 20% del stock superando los 180 días, mientras que 'Nike' sufre quiebres de stock (15%) en top sucursales.</li>
+        <li><strong>Eficiencia Operativa:</strong> El costo logístico presenta un sobrecosto del 8% frente al límite proyectado para el trimestre.</li>
+      </ul>
+      <p><strong>Conclusión Ejecutiva:</strong> Priorizar reasignación de inventario de Running hacia tiendas de alta rotación, acelerar el reabastecimiento de Nike, y auditar tarifas logísticas para mitigar la erosión del margen.</p>
+    </div>
+  );
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 h-full">
@@ -55,13 +67,6 @@ export default function ExecutiveReport() {
             <p className="text-gray-500">Overview directivo y KPIs en tiempo real.</p>
           </div>
           <div className="flex items-center gap-3">
-            <Link 
-              to="/commercial-intelligence/business-report" 
-              className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors border border-blue-200"
-            >
-              <Briefcase size={16} />
-              Generar Business Report
-            </Link>
             <button className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors">
               <FileText size={16} />
               Exportar PDF
@@ -70,7 +75,7 @@ export default function ExecutiveReport() {
         </div>
 
         <div className="mb-6">
-          <RecommendationsWidget recommendations={alerts} />
+          {renderExecutiveDebrief()}
         </div>
 
         {/* C-Level Metrics */}
