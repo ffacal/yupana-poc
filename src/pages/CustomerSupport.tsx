@@ -38,8 +38,12 @@ export default function CustomerSupport() {
       {/* Data Panel */}
       <div className="flex-1 flex flex-col gap-6 overflow-y-auto pr-2 pb-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Customer Support & Sentiment</h2>
+          <h2 className="text-2xl font-bold text-gray-900">Soporte al Cliente y Sentimiento</h2>
           <p className="text-gray-500">Métricas de interacción con la marca, satisfacción y puntos de contacto.</p>
+        </div>
+
+        <div className="mb-6">
+          <RecommendationsWidget recommendations={recommendations} />
         </div>
 
         {/* Support KPIs */}
@@ -98,19 +102,18 @@ export default function CustomerSupport() {
           />
         </div>
 
-        <div className="mt-8">
-          <RecommendationsWidget recommendations={recommendations} />
-        </div>
+
       </div>
 
       {/* Chat Panel */}
       <div className="w-full lg:w-[400px] shrink-0">
         <ChatPanel 
           moduleName="Customer Support"
+          contextMessage="Hola. Analizando el sentimiento de clientes: el CSAT general es del 82%, pero notamos un 40% de sentimiento negativo en Redes Sociales, principalmente por demoras de envío. ¿Qué área de atención te gustaría revisar?"
           suggestions={[
-            "¿Cuáles son los reclamos más frecuentes en E-commerce?",
-            "Comparar NPS de Retail vs E-commerce",
-            "Mostrar evolución de satisfacción de atención post-venta"
+            "Profundizar en quejas por demoras en envíos (E-commerce)",
+            "Comparar efectividad de Retail vs Redes Sociales",
+            "Analizar evolución del CSAT en los últimos 3 meses"
           ]}
         />
       </div>

@@ -1,13 +1,21 @@
 import { Link } from 'react-router-dom';
-import { PieChart, LineChart, BarChart3, ArrowRight, Sparkles, HeartHandshake, MessageSquare } from 'lucide-react';
+import { PieChart, LineChart, BarChart3, ArrowRight, Sparkles, HeartHandshake, MessageSquare, BrainCircuit } from 'lucide-react';
 import { RecommendationsWidget } from '../components/WidgetCards';
 import { motion } from 'framer-motion';
 
 export default function Dashboard() {
   const modules = [
     {
+      id: 'commercial-intelligence',
+      title: 'Inteligencia Comercial',
+      description: 'Agentes de IA especializados en predecir ventas, optimizar inventario, analizar precios y resolver curvas rotas.',
+      icon: BrainCircuit,
+      color: 'bg-indigo-50 text-indigo-600',
+      delay: 0.1,
+    },
+    {
       id: 'market-research',
-      title: 'Market Research',
+      title: 'Benchmark de Mercado',
       description: 'Analizá datos públicos, precios promedio, tendencias del mercado y posicionamiento de la competencia.',
       icon: PieChart,
       color: 'bg-blue-50 text-blue-600',
@@ -15,7 +23,7 @@ export default function Dashboard() {
     },
     {
       id: 'company-insights',
-      title: 'Company Insights',
+      title: 'Insights',
       description: 'Conectá tu ERP para entender operaciones de ventas, stock, sell-in, sell-out y comportamiento de productos.',
       icon: LineChart,
       color: 'bg-green-50 text-green-600',
@@ -23,7 +31,7 @@ export default function Dashboard() {
     },
     {
       id: 'executive-report',
-      title: 'Executive Report',
+      title: 'Reporte Ejecutivo',
       description: 'Plantillas de KPIs listas para reuniones de directorio (CMO, CEO, CFO). Métricas clave al instante.',
       icon: BarChart3,
       color: 'bg-purple-50 text-purple-600',
@@ -31,7 +39,7 @@ export default function Dashboard() {
     },
     {
       id: 'customer-support',
-      title: 'Customer Support',
+      title: 'Soporte al Cliente',
       description: 'Analizá el sentimiento de tus clientes, métricas de satisfacción y el rendimiento de los canales de atención.',
       icon: HeartHandshake,
       color: 'bg-pink-50 text-pink-600',
@@ -39,7 +47,7 @@ export default function Dashboard() {
     },
     {
       id: 'global-chat-history',
-      title: 'Global Chat History',
+      title: 'Historial Global de Chat',
       description: 'Revisá el historial de todas tus conversaciones y análisis transversales realizados con el agente de IA.',
       icon: MessageSquare,
       color: 'bg-orange-50 text-orange-600',

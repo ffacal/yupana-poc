@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   ResponsiveContainer, 
@@ -15,9 +15,9 @@ import {
   Pie,
   Cell
 } from 'recharts';
-import { AlertCircle, TrendingUp, TrendingDown } from 'lucide-react';
+import { AlertCircle, TrendingUp, TrendingDown, ChevronDown, ChevronUp } from 'lucide-react';
 
-export function ScoreCard({ title, value, trend, trendValue, icon: Icon }: { title: string, value: string, trend?: 'up' | 'down' | 'neutral', trendValue?: string, icon?: React.ElementType }) {
+export function ScoreCard({ title, value, trend, trendValue, trendLabel = 'vs mes anterior', icon: Icon }: { title: string, value: string, trend?: 'up' | 'down' | 'neutral', trendValue?: string, trendLabel?: string, icon?: React.ElementType }) {
   return (
     <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex flex-col">
       <div className="flex justify-between items-start mb-2">
@@ -29,14 +29,14 @@ export function ScoreCard({ title, value, trend, trendValue, icon: Icon }: { tit
         <div className={`flex items-center text-xs font-medium ${trend === 'up' ? 'text-green-600' : trend === 'down' ? 'text-red-600' : 'text-gray-500'}`}>
           {trend === 'up' && <TrendingUp size={14} className="mr-1" />}
           {trend === 'down' && <TrendingDown size={14} className="mr-1" />}
-          {trendValue} vs mes anterior
+          {trendValue} {trendLabel}
         </div>
       )}
     </div>
   );
 }
 
-export function LineChartWidget({ title, data, dataKeyX, dataKeyY, strokeColor = '#ccff00' }: { title: string, data: any[], dataKeyX: string, dataKeyY: string, strokeColor?: string }) {
+export function LineChartWidget({ title, data, dataKeyX, dataKeyY, strokeColor = '#ccff00', lines }: { title: string, data: any[], dataKeyX: string, dataKeyY?: string, strokeColor?: string, lines?: { key: string, color: string, name?: string }[] }) {
   return (
     <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm h-full flex flex-col">
       <h3 className="text-sm font-medium text-gray-800 mb-4">{title}</h3>
@@ -49,7 +49,16 @@ export function LineChartWidget({ title, data, dataKeyX, dataKeyY, strokeColor =
             <Tooltip 
               contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
             />
-            <Line type="monotone" dataKey={dataKeyY} stroke={strokeColor} strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
+            {lines ? (
+              <>
+                <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
+                {lines.map((line, idx) => (
+                  <Line key={idx} type="monotone" dataKey={line.key} name={line.name || line.key} stroke={line.color} strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
+                ))}
+              </>
+            ) : (
+              <Line type="monotone" dataKey={dataKeyY!} stroke={strokeColor} strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
+            )}
           </RechartsLineChart>
         </ResponsiveContainer>
       </div>
@@ -82,23 +91,23 @@ export function BarChartWidget({ title, data, dataKeyX, bars }: { title: string,
   );
 }
 
-export function PieChartWidget({ title, data, dataKey, nameKey, colors }: { title: string, data: any[], dataKey: string, nameKey: string, colors: string[] }) {
+export function PieChartWidget({ title, data, dataKey, nameKey, colors, showLabels = false }: { title: string, data: any[], dataKey: string, nameKey: string, colors: string[], showLabels?: boolean }) {
   return (
     <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm h-full flex flex-col">
       <h3 className="text-sm font-medium text-gray-800 mb-4">{title}</h3>
-      <div className="flex-1 min-h-[300px] flex items-center justify-center">
+      <div className="flex-1 min-h-[200px] flex items-center justify-center">
         <ResponsiveContainer width="100%" height="100%">
           <RechartsPieChart>
             <Pie
               data={data}
               cx="50%"
-              cy="50%"
+              cy="45%"
               innerRadius={0}
-              outerRadius={80}
+              outerRadius={75}
               paddingAngle={5}
               dataKey={dataKey}
               nameKey={nameKey}
-              label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
+              label={showLabels ? ({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%` : false}
               labelLine={false}
             >
               {data.map((_, index) => (
@@ -116,30 +125,54 @@ export function PieChartWidget({ title, data, dataKey, nameKey, colors }: { titl
   );
 }
 
-export function RecommendationsWidget({ recommendations }: { recommendations: { text: string, type: 'warning' | 'info' | 'action', link?: string }[] }) {
+export function RecommendationsWidget({ recommendations, isCollapsible = true }: { recommendations: { text: string, type: 'warning' | 'info' | 'action', link?: string }[], isCollapsible?: boolean }) {
+  const [isOpen, setIsOpen] = useState(!isCollapsible);
+
   return (
-    <div className="bg-gradient-to-br from-gray-900 to-black p-5 rounded-2xl border border-gray-800 shadow-lg text-white">
-      <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
-        <AlertCircle size={16} className="text-yupana-green" />
-        Recomendaciones del Agente
-      </h3>
-      <ul className="space-y-3">
-        {recommendations.map((rec, idx) => (
-          <li key={idx} className="flex gap-3 items-start text-sm">
-            <span className={`shrink-0 w-2 h-2 rounded-full mt-1.5 ${
-              rec.type === 'action' ? 'bg-yupana-green' : rec.type === 'warning' ? 'bg-amber-400' : 'bg-blue-400'
-            }`}></span>
-            <div className="text-gray-300 leading-relaxed flex-1">
-              {rec.text}
-              {rec.link && (
-                <Link to={rec.link} className="inline-flex items-center gap-1 mt-1.5 text-yupana-green hover:underline font-medium text-xs opacity-90 hover:opacity-100 transition-opacity">
-                  Ver insight detallado &rarr;
-                </Link>
-              )}
-            </div>
-          </li>
-        ))}
-      </ul>
+    <div className="bg-gradient-to-br from-gray-900 to-black rounded-2xl border border-gray-800 shadow-lg text-white overflow-hidden">
+      <div 
+        className={`flex items-center justify-between p-5 ${isCollapsible ? 'cursor-pointer select-none hover:bg-white/5 transition-colors' : ''} ${isOpen ? 'pb-2' : ''}`}
+        onClick={() => isCollapsible && setIsOpen(!isOpen)}
+      >
+        <div className="flex items-center gap-3">
+          <h3 className="text-sm font-semibold flex items-center gap-2 m-0">
+            <AlertCircle size={16} className="text-yupana-green" />
+            Recomendaciones del Agente
+          </h3>
+          {isCollapsible && !isOpen && (
+            <span className="text-yupana-green text-[10px] font-bold uppercase tracking-wider bg-yupana-green/10 px-2 py-0.5 rounded border border-yupana-green/20">
+              Expand
+            </span>
+          )}
+        </div>
+        {isCollapsible && (
+          <div className="text-gray-400">
+            {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </div>
+        )}
+      </div>
+
+      {isOpen && (
+        <div className="p-5 pt-2">
+          <ul className="space-y-3">
+            {recommendations.map((rec, idx) => (
+              <li key={idx} className="flex gap-3 items-start text-sm">
+                <span className={`shrink-0 w-2 h-2 rounded-full mt-1.5 ${
+                  rec.type === 'action' ? 'bg-yupana-green' : rec.type === 'warning' ? 'bg-amber-400' : 'bg-blue-400'
+                }`}></span>
+                <div className="text-gray-300 leading-relaxed flex-1">
+                  {rec.text}
+                  {rec.link && (
+                    <Link to={rec.link} className="inline-flex items-center gap-1 mt-1.5 text-yupana-green hover:underline font-medium text-xs opacity-90 hover:opacity-100 transition-opacity">
+                      Ver insight detallado &rarr;
+                    </Link>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

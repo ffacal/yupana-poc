@@ -10,7 +10,8 @@ import {
   ChevronRight,
   Menu,
   HeartHandshake,
-  MessageSquare
+  MessageSquare,
+  BrainCircuit
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -20,12 +21,29 @@ export default function Layout() {
 
   const navItems = [
     { path: '/', label: 'Inicio', icon: LayoutDashboard },
-    { path: '/market-research', label: 'Market Research', icon: PieChart },
-    { path: '/company-insights', label: 'Company Insights', icon: LineChart },
-    { path: '/executive-report', label: 'Executive Report', icon: BarChart3 },
-    { path: '/customer-support', label: 'Customer Support', icon: HeartHandshake },
-    { path: '/global-chat-history', label: 'Global Chat History', icon: MessageSquare },
+    { path: '/commercial-intelligence', label: 'Inteligencia Comercial', icon: BrainCircuit },
+    { path: '/market-research', label: 'Benchmark de Mercado', icon: PieChart },
+    { path: '/company-insights', label: 'Insights', icon: LineChart },
+    { path: '/executive-report', label: 'Reporte Ejecutivo', icon: BarChart3 },
+    { path: '/customer-support', label: 'Soporte al Cliente', icon: HeartHandshake },
+    { path: '/global-chat-history', label: 'Historial Global de Chat', icon: MessageSquare },
   ];
+
+  const getPageTitle = () => {
+    const item = navItems.find(i => i.path === location.pathname);
+    if (item) return item.label;
+    
+    if (location.pathname.startsWith('/commercial-intelligence/')) {
+      const featureId = location.pathname.split('/').pop();
+      if (featureId) {
+        const featureTitle = featureId.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+        return `Intelligence Hub / ${featureTitle}`;
+      }
+      return 'Agent Analysis';
+    }
+    
+    return 'Dashboard';
+  };
 
   return (
     <div className="flex h-screen w-full bg-gray-50 overflow-hidden text-gray-900">
@@ -83,7 +101,7 @@ export default function Layout() {
           <div className="mt-auto">
             <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-500 hover:bg-gray-50 hover:text-gray-900 transition-colors group">
               <Settings size={20} className="text-gray-400 group-hover:text-gray-600" />
-              {!collapsed && <span>Settings</span>}
+              {!collapsed && <span>Configuración</span>}
             </button>
             <button className="w-full mt-2 flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-500 hover:bg-gray-50 hover:text-gray-900 transition-colors group">
               <div className="w-6 h-6 rounded-full bg-gray-200 overflow-hidden flex items-center justify-center">
@@ -103,7 +121,7 @@ export default function Layout() {
               <Menu size={24} className="text-gray-500" />
             </div>
             <h1 className="text-lg font-medium text-gray-800">
-              {navItems.find(i => i.path === location.pathname)?.label || 'Dashboard'}
+              {getPageTitle()}
             </h1>
           </div>
           <div className="flex items-center gap-3">

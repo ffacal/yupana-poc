@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Box, Package, Activity } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Box, Package, Activity, BrainCircuit, AlertTriangle } from 'lucide-react';
 import { ScoreCard, LineChartWidget, BarChartWidget, PieChartWidget, RecommendationsWidget } from '../components/WidgetCards';
 import ChatPanel from '../components/ChatPanel';
 
@@ -55,13 +56,20 @@ export default function CompanyInsights() {
     { text: "Optimizar el inventario de Ghost 15; las ventas cayeron un 12% frente a la estimación.", type: "action" as const },
   ];
 
+  const agentFeatures = [
+    { id: 'curvas-rotas', title: 'Curvas Rotas', prd: 'PRD-011', icon: Activity },
+    { id: 'inventory-rotation', title: 'Rotación de Inventario', prd: 'PRD-013', icon: Package },
+    { id: 'product-clustering', title: 'Clustering de Productos', prd: 'PRD-014', icon: BrainCircuit },
+    { id: 'oos-probability', title: 'Probabilidad de Quiebre', prd: 'PRD-015', icon: AlertTriangle },
+  ];
+
   return (
     <div className="flex flex-col lg:flex-row gap-6 h-full">
       {/* Data Panel */}
       <div className="flex-1 flex flex-col gap-6 overflow-y-auto pr-2 pb-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Company Insights</h2>
+            <h2 className="text-2xl font-bold text-gray-900">Insights</h2>
             <p className="text-gray-500">Métricas operativas conectadas a tu ERP.</p>
           </div>
           <div className="flex items-center gap-2 bg-white rounded-lg p-1 border border-gray-200">
@@ -83,6 +91,36 @@ export default function CompanyInsights() {
             >
               Anual
             </button>
+          </div>
+        </div>
+
+        <div className="mb-6">
+          <RecommendationsWidget recommendations={recommendations} />
+        </div>
+
+        <div className="mb-4">
+          <div className="flex items-center gap-2 mb-3">
+            <BrainCircuit className="text-blue-600 w-4 h-4" /> 
+            <span className="text-sm font-semibold text-gray-700">Análisis disponibles</span>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {agentFeatures.map((feat) => {
+              const Icon = feat.icon;
+              return (
+                <Link
+                  key={feat.id}
+                  to={`/commercial-intelligence/${feat.id}`}
+                  className="flex items-center gap-3 bg-white rounded-lg border border-gray-200 p-2.5 hover:border-blue-300 hover:bg-blue-50 transition-colors group shadow-sm"
+                >
+                  <div className="w-8 h-8 rounded-md flex items-center justify-center bg-blue-50 text-blue-600 group-hover:bg-blue-100 group-hover:text-blue-700 transition-colors shrink-0">
+                    <Icon size={16} />
+                  </div>
+                  <span className="text-sm font-medium text-gray-700 group-hover:text-blue-800 leading-tight">
+                    {feat.title}
+                  </span>
+                </Link>
+              );
+            })}
           </div>
         </div>
 
@@ -145,19 +183,20 @@ export default function CompanyInsights() {
           />
         </div>
 
-        <div className="mt-8">
-          <RecommendationsWidget recommendations={recommendations} />
-        </div>
+
+
+
       </div>
 
       {/* Chat Panel */}
       <div className="w-full lg:w-[400px] shrink-0">
         <ChatPanel 
-          moduleName="Company Insights"
+          moduleName="Insights"
+          contextMessage="Hola. Analizando los datos de operaciones: la rotación de inventario está en 4.2x y hay riesgo de quiebre de stock en Racer Carbon 3. ¿En qué métricas de Sell-out o distribución te gustaría profundizar?"
           suggestions={[
-            "¿Cuántas Racer Carbon 3 se vendieron este mes?",
-            "Analizar quiebres de stock en el depósito central",
-            "Comparar Sell-out vs plan mensual"
+            "¿Cuál es la causa del quiebre de stock en Racer Carbon 3?",
+            "Analizar distribución de ventas por canal (D2C vs Retail)",
+            "Comparar rendimiento de los Top Distribuidores"
           ]}
         />
       </div>

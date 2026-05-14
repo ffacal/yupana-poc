@@ -11,14 +11,15 @@ interface Message {
 interface ChatPanelProps {
   moduleName: string;
   suggestions: string[];
+  contextMessage?: string;
 }
 
-export default function ChatPanel({ moduleName, suggestions }: ChatPanelProps) {
+export default function ChatPanel({ moduleName, suggestions, contextMessage }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       role: 'assistant',
-      content: `Hola. Soy tu agente de IA experto en ${moduleName}. ¿Qué métricas o insights te gustaría explorar hoy?`
+      content: contextMessage || `Hola. Soy tu agente de IA experto en ${moduleName}. ¿Qué métricas o insights te gustaría explorar hoy?`
     }
   ]);
   const [inputValue, setInputValue] = useState('');

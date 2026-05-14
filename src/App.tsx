@@ -6,6 +6,8 @@ import CompanyInsights from './pages/CompanyInsights';
 import ExecutiveReport from './pages/ExecutiveReport';
 import CustomerSupport from './pages/CustomerSupport';
 import GlobalChatHistory from './pages/GlobalChatHistory';
+import CommercialIntelligence from './pages/CommercialIntelligence';
+import FeatureMock from './pages/FeatureMock';
 
 function App() {
   return (
@@ -13,6 +15,8 @@ function App() {
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<Dashboard />} />
+          <Route path="commercial-intelligence" element={<CommercialIntelligence />} />
+          <Route path="commercial-intelligence/:featureId" element={<FeatureMock />} />
           <Route path="market-research" element={<MarketResearch />} />
           <Route path="company-insights" element={<CompanyInsights />} />
           <Route path="executive-report" element={<ExecutiveReport />} />
