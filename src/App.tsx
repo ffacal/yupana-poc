@@ -4,8 +4,7 @@ import Dashboard from './pages/Dashboard';
 import MarketResearch from './pages/MarketResearch';
 import CompanyInsights from './pages/CompanyInsights';
 import ExecutiveReport from './pages/ExecutiveReport';
-import CustomerSupport from './pages/CustomerSupport';
-import GlobalChatHistory from './pages/GlobalChatHistory';
+// import CustomerSupport from './pages/CustomerSupport';
 import CommercialIntelligence from './pages/CommercialIntelligence';
 import FeatureMock from './pages/FeatureMock';
 
@@ -20,8 +19,7 @@ function App() {
           <Route path="market-research" element={<MarketResearch />} />
           <Route path="company-insights" element={<CompanyInsights />} />
           <Route path="executive-report" element={<ExecutiveReport />} />
-          <Route path="customer-support" element={<CustomerSupport />} />
-          <Route path="global-chat-history" element={<GlobalChatHistory />} />
+          {/* <Route path="customer-support" element={<CustomerSupport />} /> */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

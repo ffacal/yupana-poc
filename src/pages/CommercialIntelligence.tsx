@@ -1,18 +1,42 @@
-import { BrainCircuit, Bot } from 'lucide-react';
-import { BarChartWidget, LineChartWidget, PieChartWidget } from '../components/WidgetCards';
+import { useState } from 'react';
+import { BrainCircuit } from 'lucide-react';
+import { BarChartWidget, LineChartWidget, PieChartWidget, DebriefWidget } from '../components/WidgetCards';
 import ChatPanel from '../components/ChatPanel';
+import ConversationHistoryPanel from '../components/ConversationHistoryPanel';
+import type { Conversation } from '../utils/chatDb';
 
 export default function CommercialIntelligence() {
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [chatContext, setChatContext] = useState<string | undefined>(undefined);
+  const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(true);
+
+  const handleOpenChat = (contextPrompt?: string) => {
+    setChatContext(contextPrompt);
+    setActiveConversation(null);
+    setIsChatOpen(true);
+    setIsHistoryCollapsed(false);
+  };
+
+  const handleSelectConversation = (convo: Conversation | null) => {
+    setActiveConversation(convo);
+    setChatContext(undefined);
+    if (convo) {
+      setIsChatOpen(true);
+      setIsHistoryCollapsed(false);
+    } else {
+      setIsChatOpen(false);
+    }
+  };
+
+  const handleSaveSuccess = (savedConvo: Conversation) => {
+    setActiveConversation(savedConvo);
+    setRefreshTrigger(prev => prev + 1);
+  };
+
   const renderMockDebrief = () => (
-    <div className="bg-white p-6 rounded-2xl border border-blue-100 shadow-sm text-gray-700 text-sm leading-relaxed relative overflow-hidden">
-      <div className="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
-      <div className="flex items-center gap-2 mb-4 border-b border-gray-100 pb-3">
-        <div className="w-8 h-8 rounded-md flex items-center justify-center bg-blue-50 text-blue-600">
-          <Bot size={20} />
-        </div>
-        <h3 className="text-lg font-semibold text-gray-900">Debrief Analítico Transversal</h3>
-      </div>
-      
+    <DebriefWidget title="Debrief Analítico Transversal">
       <p className="mb-3">El agente de inteligencia comercial ha procesado en profundidad las proyecciones de ventas, elasticidad de precios y asignación de inventario. El análisis arroja patrones determinantes:</p>
       <ul className="list-disc pl-5 mb-3 space-y-1">
         <li><strong>Proyección de Ventas:</strong> Basado en un modelo predictivo, la proyección para los próximos 90 días muestra un crecimiento sostenido hacia Octubre, pero con un estancamiento en Agosto.</li>
@@ -20,12 +44,12 @@ export default function CommercialIntelligence() {
         <li><strong>Flujo de Inventario:</strong> La categoría Outdoor promedia 120 días de stock frente a un objetivo de 60 días, comprometiendo liquidez.</li>
       </ul>
       <p><strong>Conclusión del Agente:</strong> Adelantar presupuesto de performance para sostener el impulso de ventas en Agosto, ejecutar una promoción agresiva en Outdoor para liberar stock, y reajustar precios en la línea Running Premium donde la demanda es inelástica.</p>
-    </div>
+    </DebriefWidget>
   );
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 h-full">
-      {/* Data Panel */}
+      {/* Central Content Area */}
       <div className="flex-1 flex flex-col gap-6 overflow-y-auto pr-2 pb-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -33,10 +57,6 @@ export default function CommercialIntelligence() {
               Inteligencia Comercial <BrainCircuit className="text-blue-600 w-6 h-6" />
             </h1>
             <p className="text-gray-500">Nuestros agentes analizan tus datos para descubrir oportunidades y optimizar operaciones.</p>
-          </div>
-          <div className="flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full text-sm font-medium border border-blue-200">
-            <Bot size={16} />
-            Agentes Activos (10)
           </div>
         </div>
 
@@ -57,6 +77,7 @@ export default function CommercialIntelligence() {
               dataKeyX="month"
               dataKeyY="proj"
               strokeColor="#3b82f6"
+              onOpenChat={handleOpenChat}
             />
           </div>
           <div className="h-80">
@@ -72,6 +93,7 @@ export default function CommercialIntelligence() {
                 { key: 'us', name: 'Nuestro Precio', color: '#3b82f6' },
                 { key: 'market', name: 'Promedio Mercado', color: '#9ca3af' }
               ]}
+              onOpenChat={handleOpenChat}
             />
           </div>
           <div className="h-80">
@@ -86,6 +108,7 @@ export default function CommercialIntelligence() {
               dataKeyX="sem"
               dataKeyY="out"
               strokeColor="#f43f5e"
+              onOpenChat={handleOpenChat}
             />
           </div>
           <div className="h-80">
@@ -100,22 +123,55 @@ export default function CommercialIntelligence() {
               dataKey="prop"
               nameKey="cat"
               colors={['#3b82f6', '#8b5cf6', '#ec4899', '#f43f5e']}
+              onOpenChat={handleOpenChat}
             />
           </div>
         </div>
       </div>
 
-      {/* Chat Panel */}
-      <div className="w-full lg:w-[400px] shrink-0">
-        <ChatPanel 
-          moduleName="Inteligencia Comercial"
-          contextMessage="Hola. He consolidado los análisis de todos tus agentes activos. Detecté una acumulación de inventario en Outdoor y una oportunidad de ajuste de precios en Running Premium. ¿En qué recomendación ejecutiva te gustaría profundizar?"
-          suggestions={[
-            "Profundizar en la estrategia de precios para Running",
-            "Ver plan de liquidación para el stock de Outdoor",
-            "Explicar la proyección de ventas para Octubre"
-          ]}
-        />
+      {/* History & Chat Sidebar Panel */}
+      <div className={`w-full shrink-0 transition-all duration-300 ${isHistoryCollapsed ? "lg:w-12" : isChatOpen ? "lg:w-[400px]" : "lg:w-[320px]"}`}>
+        {isHistoryCollapsed ? (
+          <ConversationHistoryPanel
+            moduleKey="commercial_intel"
+            activeConversationId={activeConversation?.id || null}
+            onSelectConversation={handleSelectConversation}
+            refreshTrigger={refreshTrigger}
+            isCollapsed={true}
+            onToggleCollapse={() => setIsHistoryCollapsed(false)}
+            onOpenChat={() => handleOpenChat()}
+          />
+        ) : isChatOpen ? (
+          <div className="h-[calc(100vh-8rem)]">
+            <ChatPanel
+              moduleKey="commercial_intel"
+              moduleName="Inteligencia Comercial"
+              contextMessage={chatContext || (activeConversation ? undefined : "Hola. He consolidado los análisis de todos tus agentes activos. Detecté una acumulación de inventario en Outdoor y una oportunidad de ajuste de precios en Running Premium. ¿En qué recomendación ejecutiva te gustaría profundizar?")}
+              suggestions={[
+                "Profundizar en la estrategia de precios para Running",
+                "Ver plan de liquidación para el stock de Outdoor",
+                "Explicar la proyección de ventas para Octubre"
+              ]}
+              initialConversation={activeConversation}
+              onClose={() => {
+                setIsChatOpen(false);
+                setActiveConversation(null);
+              }}
+              onSaveSuccess={handleSaveSuccess}
+              onToggleCollapse={() => setIsHistoryCollapsed(true)}
+            />
+          </div>
+        ) : (
+          <ConversationHistoryPanel
+            moduleKey="commercial_intel"
+            activeConversationId={activeConversation?.id || null}
+            onSelectConversation={handleSelectConversation}
+            refreshTrigger={refreshTrigger}
+            isCollapsed={false}
+            onToggleCollapse={() => setIsHistoryCollapsed(true)}
+            onOpenChat={() => handleOpenChat()}
+          />
+        )}
       </div>
     </div>
   );

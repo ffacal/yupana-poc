@@ -1,8 +1,40 @@
-import { DollarSign, Target, FileText, Package, Clock, Percent, Store, Bot } from 'lucide-react';
-import { ScoreCard, BarChartWidget, PieChartWidget, LineChartWidget } from '../components/WidgetCards';
+import { useState } from 'react';
+import { DollarSign, Target, FileText, Package, Clock, Percent, Store } from 'lucide-react';
+import { ScoreCard, BarChartWidget, PieChartWidget, LineChartWidget, DebriefWidget } from '../components/WidgetCards';
 import ChatPanel from '../components/ChatPanel';
+import ConversationHistoryPanel from '../components/ConversationHistoryPanel';
+import type { Conversation } from '../utils/chatDb';
 
 export default function ExecutiveReport() {
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [chatContext, setChatContext] = useState<string | undefined>(undefined);
+  const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(true);
+
+  const handleOpenChat = (contextPrompt?: string) => {
+    setChatContext(contextPrompt);
+    setActiveConversation(null);
+    setIsChatOpen(true);
+    setIsHistoryCollapsed(false);
+  };
+
+  const handleSelectConversation = (convo: Conversation | null) => {
+    setActiveConversation(convo);
+    setChatContext(undefined);
+    if (convo) {
+      setIsChatOpen(true);
+      setIsHistoryCollapsed(false);
+    } else {
+      setIsChatOpen(false);
+    }
+  };
+
+  const handleSaveSuccess = (savedConvo: Conversation) => {
+    setActiveConversation(savedConvo);
+    setRefreshTrigger(prev => prev + 1);
+  };
+
   const revenueTrendData = [
     { month: 'Ene', real: 3200, budget: 3000, lastYear: 2800 },
     { month: 'Feb', real: 2800, budget: 2900, lastYear: 2600 },
@@ -38,15 +70,7 @@ export default function ExecutiveReport() {
   ];
 
   const renderExecutiveDebrief = () => (
-    <div className="bg-white p-6 rounded-2xl border border-blue-100 shadow-sm text-gray-700 text-sm leading-relaxed relative overflow-hidden">
-      <div className="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
-      <div className="flex items-center gap-2 mb-4 border-b border-gray-100 pb-3">
-        <div className="w-8 h-8 rounded-md flex items-center justify-center bg-blue-50 text-blue-600">
-          <Bot size={20} />
-        </div>
-        <h3 className="text-lg font-semibold text-gray-900">Debrief Analítico del Agente</h3>
-      </div>
-      
+    <DebriefWidget title="Debrief Analítico del Agente">
       <p className="mb-3">El agente directivo ha consolidado los indicadores clave de rendimiento (KPIs) de esta semana. Se observa una desviación positiva en ingresos, aunque contrarrestada por alertas operativas que requieren atención inmediata:</p>
       <ul className="list-disc pl-5 mb-3 space-y-1">
         <li><strong>Desempeño de Tiendas (2 Críticas):</strong> La sucursal 'Florida' registra una severa caída en sell-through (55% vs objetivo del 70%) y contracción de ventas del 12%; por otro lado, 'Abasto' (68%) entra en zona de riesgo al no alcanzar las cuotas proyectadas. Requieren revisión de tráfico y conversión.</li>
@@ -54,12 +78,12 @@ export default function ExecutiveReport() {
         <li><strong>Eficiencia Operativa:</strong> El costo logístico presenta un sobrecosto del 8% frente al límite proyectado para el trimestre.</li>
       </ul>
       <p><strong>Conclusión Ejecutiva:</strong> Priorizar reasignación de inventario de Running hacia tiendas de alta rotación, acelerar el reabastecimiento de Nike, y auditar tarifas logísticas para mitigar la erosión del margen.</p>
-    </div>
+    </DebriefWidget>
   );
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 h-full">
-      {/* Data Panel */}
+      {/* Central Content Area */}
       <div className="flex-1 flex flex-col gap-6 overflow-y-auto pr-2 pb-4">
         <div className="flex justify-between items-start">
           <div>
@@ -69,7 +93,7 @@ export default function ExecutiveReport() {
           <div className="flex items-center gap-3">
             <button className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors">
               <FileText size={16} />
-              Exportar PDF
+              <span>Exportar PDF</span>
             </button>
           </div>
         </div>
@@ -87,6 +111,7 @@ export default function ExecutiveReport() {
             trendValue="+14% vs Bgt" 
             trendLabel=""
             icon={DollarSign} 
+            onOpenChat={handleOpenChat}
           />
           <ScoreCard 
             title="Días de Inventario" 
@@ -94,6 +119,7 @@ export default function ExecutiveReport() {
             trend="down" 
             trendValue="-5 Días" 
             icon={Package} 
+            onOpenChat={handleOpenChat}
           />
           <ScoreCard 
             title="Edad > 90 Días" 
@@ -101,6 +127,7 @@ export default function ExecutiveReport() {
             trend="down" 
             trendValue="-2%" 
             icon={Clock} 
+            onOpenChat={handleOpenChat}
           />
           <ScoreCard 
             title="Var. Presupuesto" 
@@ -109,6 +136,7 @@ export default function ExecutiveReport() {
             trendValue="Ingresos" 
             trendLabel=""
             icon={Target} 
+            onOpenChat={handleOpenChat}
           />
           <ScoreCard 
             title="Sell-through" 
@@ -116,6 +144,7 @@ export default function ExecutiveReport() {
             trend="up" 
             trendValue="+3%" 
             icon={Percent} 
+            onOpenChat={handleOpenChat}
           />
           <ScoreCard 
             title="Tiendas Críticas" 
@@ -124,6 +153,7 @@ export default function ExecutiveReport() {
             trendValue="Requieren acción" 
             trendLabel=""
             icon={Store} 
+            onOpenChat={handleOpenChat}
           />
         </div>
 
@@ -138,6 +168,7 @@ export default function ExecutiveReport() {
                 { key: 'budget', name: 'Presupuesto ($)', color: '#64748b' },
                 { key: 'lastYear', name: 'Año Anterior ($)', color: '#ccff00' }
               ]}
+              onOpenChat={handleOpenChat}
             />
           </div>
           <div className="h-80">
@@ -149,6 +180,7 @@ export default function ExecutiveReport() {
                 { key: 'real', name: 'Real (M$)', color: '#1a1a1a' },
                 { key: 'budget', name: 'Presupuesto (M$)', color: '#64748b' }
               ]}
+              onOpenChat={handleOpenChat}
             />
           </div>
           <div className="h-80">
@@ -158,6 +190,7 @@ export default function ExecutiveReport() {
               dataKey="value"
               nameKey="name"
               colors={['#10b981', '#ccff00', '#f59e0b', '#ef4444']}
+              onOpenChat={handleOpenChat}
             />
           </div>
           <div className="h-80">
@@ -169,6 +202,7 @@ export default function ExecutiveReport() {
                 { key: 'sellThrough', name: 'Sell-through (%)', color: '#1a1a1a' },
                 { key: 'target', name: 'Objetivo (%)', color: '#64748b' }
               ]}
+              onOpenChat={handleOpenChat}
             />
           </div>
           <div className="h-80">
@@ -180,26 +214,55 @@ export default function ExecutiveReport() {
                 { key: 'sellThrough', name: 'Sell-through (%)', color: '#1a1a1a' },
                 { key: 'target', name: 'Objetivo (%)', color: '#ccff00' }
               ]}
+              onOpenChat={handleOpenChat}
             />
           </div>
         </div>
-
-
-
-
       </div>
 
-      {/* Chat Panel */}
-      <div className="w-full lg:w-[400px] shrink-0">
-        <ChatPanel 
-          moduleName="Executive Board"
-          contextMessage="Hola. Analizando los KPIs directivos: Las ventas superan el presupuesto en 14%, sin embargo la tienda 'Florida' presenta una caída del 12% y la categoría 'Running' tiene un 20% de stock inmovilizado (>180 días). ¿Quieres que profundicemos en alguno de estos puntos?"
-          suggestions={[
-            "Analizar motivos de caída en tienda Florida",
-            "Ver plan de liquidación para Running",
-            "Detalle de desviación en costo logístico"
-          ]}
-        />
+      {/* History & Chat Sidebar Panel */}
+      <div className={`w-full shrink-0 transition-all duration-300 ${isHistoryCollapsed ? "lg:w-12" : isChatOpen ? "lg:w-[400px]" : "lg:w-[320px]"}`}>
+        {isHistoryCollapsed ? (
+          <ConversationHistoryPanel
+            moduleKey="exec_report"
+            activeConversationId={activeConversation?.id || null}
+            onSelectConversation={handleSelectConversation}
+            refreshTrigger={refreshTrigger}
+            isCollapsed={true}
+            onToggleCollapse={() => setIsHistoryCollapsed(false)}
+            onOpenChat={() => handleOpenChat()}
+          />
+        ) : isChatOpen ? (
+          <div className="h-[calc(100vh-8rem)]">
+            <ChatPanel
+              moduleKey="exec_report"
+              moduleName="Executive Board"
+              contextMessage={chatContext || (activeConversation ? undefined : "Hola. Analizando los KPIs directivos: Las ventas superan el presupuesto en 14%, sin embargo la tienda 'Florida' presenta una caída del 12% y la categoría 'Running' tiene un 20% de stock inmovilizado (>180 días). ¿Quieres que profundicemos en alguno de estos puntos?")}
+              suggestions={[
+                "Analizar motivos de caída en tienda Florida",
+                "Ver plan de liquidación para Running",
+                "Detalle de desviación en costo logístico"
+              ]}
+              initialConversation={activeConversation}
+              onClose={() => {
+                setIsChatOpen(false);
+                setActiveConversation(null);
+              }}
+              onSaveSuccess={handleSaveSuccess}
+              onToggleCollapse={() => setIsHistoryCollapsed(true)}
+            />
+          </div>
+        ) : (
+          <ConversationHistoryPanel
+            moduleKey="exec_report"
+            activeConversationId={activeConversation?.id || null}
+            onSelectConversation={handleSelectConversation}
+            refreshTrigger={refreshTrigger}
+            isCollapsed={false}
+            onToggleCollapse={() => setIsHistoryCollapsed(true)}
+            onOpenChat={() => handleOpenChat()}
+          />
+        )}
       </div>
     </div>
   );

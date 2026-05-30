@@ -1,11 +1,20 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Bot, Lightbulb, TrendingUp, BarChart3, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { Lightbulb, TrendingUp, BarChart3, AlertTriangle, ArrowLeft } from 'lucide-react';
 import ChatPanel from '../components/ChatPanel';
-import { ScoreCard, BarChartWidget, LineChartWidget, PieChartWidget } from '../components/WidgetCards';
+import ConversationHistoryPanel from '../components/ConversationHistoryPanel';
+import { ScoreCard, BarChartWidget, LineChartWidget, PieChartWidget, DebriefWidget } from '../components/WidgetCards';
+import type { Conversation } from '../utils/chatDb';
 
 export default function FeatureMock() {
   const { featureId } = useParams();
   const navigate = useNavigate();
+
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [chatContext, setChatContext] = useState<string | undefined>(undefined);
+  const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(true);
 
   const titleFormat = (str: string) => {
     return str
@@ -16,7 +25,28 @@ export default function FeatureMock() {
 
   const title = featureId ? titleFormat(featureId) : 'Feature Analysis';
 
+  const handleOpenChat = (contextPrompt?: string) => {
+    setChatContext(contextPrompt);
+    setActiveConversation(null);
+    setIsChatOpen(true);
+    setIsHistoryCollapsed(false);
+  };
 
+  const handleSelectConversation = (convo: Conversation | null) => {
+    setActiveConversation(convo);
+    setChatContext(undefined);
+    if (convo) {
+      setIsChatOpen(true);
+      setIsHistoryCollapsed(false);
+    } else {
+      setIsChatOpen(false);
+    }
+  };
+
+  const handleSaveSuccess = (savedConvo: Conversation) => {
+    setActiveConversation(savedConvo);
+    setRefreshTrigger(prev => prev + 1);
+  };
 
   const renderMockChart = () => {
     switch(featureId) {
@@ -36,6 +66,7 @@ export default function FeatureMock() {
                 { key: 'perdido', name: 'Venta Perdida ($)', color: '#ef4444' },
                 { key: 'disponible', name: 'Venta Realizada ($)', color: '#22c55e' }
               ]}
+              onOpenChat={handleOpenChat}
             />
           </div>
         );
@@ -53,6 +84,7 @@ export default function FeatureMock() {
               dataKeyX="month"
               dataKeyY="proj"
               strokeColor="#3b82f6"
+              onOpenChat={handleOpenChat}
             />
           </div>
         );
@@ -71,6 +103,7 @@ export default function FeatureMock() {
               bars={[
                 { key: 'dias', name: 'Días de stock', color: '#f59e0b' }
               ]}
+              onOpenChat={handleOpenChat}
             />
           </div>
         );
@@ -87,6 +120,7 @@ export default function FeatureMock() {
               dataKey="val"
               nameKey="name"
               colors={['#22c55e', '#eab308', '#ef4444']}
+              onOpenChat={handleOpenChat}
             />
           </div>
         );
@@ -106,6 +140,7 @@ export default function FeatureMock() {
               bars={[
                 { key: 'prob', name: 'Probabilidad (%)', color: '#ef4444' }
               ]}
+              onOpenChat={handleOpenChat}
             />
           </div>
         );
@@ -124,6 +159,7 @@ export default function FeatureMock() {
               dataKeyX="dia"
               dataKeyY="ventas"
               strokeColor="#8b5cf6"
+              onOpenChat={handleOpenChat}
             />
           </div>
         );
@@ -142,6 +178,7 @@ export default function FeatureMock() {
               dataKeyX="precio"
               dataKeyY="demanda"
               strokeColor="#10b981"
+              onOpenChat={handleOpenChat}
             />
           </div>
         );
@@ -159,6 +196,7 @@ export default function FeatureMock() {
               dataKey="val"
               nameKey="name"
               colors={['#3b82f6', '#f43f5e', '#eab308', '#9ca3af']}
+              onOpenChat={handleOpenChat}
             />
           </div>
         );
@@ -177,6 +215,7 @@ export default function FeatureMock() {
                 { key: 'us', name: 'Nuestro Precio', color: '#3b82f6' },
                 { key: 'market', name: 'Promedio Mercado', color: '#9ca3af' }
               ]}
+              onOpenChat={handleOpenChat}
             />
           </div>
         );
@@ -195,6 +234,7 @@ export default function FeatureMock() {
                 { key: 'actual', name: 'Actual', color: '#22c55e' },
                 { key: 'obj', name: 'Objetivo', color: '#eab308' }
               ]}
+              onOpenChat={handleOpenChat}
             />
           </div>
         );
@@ -213,6 +253,7 @@ export default function FeatureMock() {
               bars={[
                 { key: 'ventas', name: 'Ventas (k$)', color: '#6366f1' }
               ]}
+              onOpenChat={handleOpenChat}
             />
           </div>
         );
@@ -230,6 +271,7 @@ export default function FeatureMock() {
               dataKeyX="sem"
               dataKeyY="out"
               strokeColor="#f43f5e"
+              onOpenChat={handleOpenChat}
             />
           </div>
         );
@@ -248,6 +290,7 @@ export default function FeatureMock() {
                 { key: 'normal', name: 'Volumen Base', color: '#9ca3af' },
                 { key: 'promo', name: 'Volumen con Promo', color: '#10b981' }
               ]}
+              onOpenChat={handleOpenChat}
             />
           </div>
         );
@@ -265,6 +308,7 @@ export default function FeatureMock() {
               dataKey="prop"
               nameKey="cat"
               colors={['#3b82f6', '#8b5cf6', '#ec4899', '#f43f5e']}
+              onOpenChat={handleOpenChat}
             />
           </div>
         );
@@ -282,6 +326,7 @@ export default function FeatureMock() {
               bars={[
                 { key: 'unidades', name: 'Unidades Sugeridas', color: '#14b8a6' }
               ]}
+              onOpenChat={handleOpenChat}
             />
           </div>
         );
@@ -299,6 +344,7 @@ export default function FeatureMock() {
               bars={[
                 { key: 'roi', name: 'ROI Estimado (%)', color: '#84cc16' }
               ]}
+              onOpenChat={handleOpenChat}
             />
           </div>
         );
@@ -326,7 +372,7 @@ export default function FeatureMock() {
             <p className="mb-3">El motor de inferencia ha identificado una correlación directa entre el quiebre de stock en talles core (41 a 43) y una caída del 22% en la tasa de conversión global para la familia <strong>Racer Carbon</strong>. La pérdida proyectada de $45,000 es conservadora y asume un escenario sin efecto rebote.</p>
             <ul className="list-disc pl-5 mb-3 space-y-1">
               <li><strong>Prioridad Crítica:</strong> Reabastecer la tienda principal (Flagship) y el e-commerce propio, que representan el 70% de las búsquedas fallidas.</li>
-              <li><strong>Transferencia Recomendada:</strong> Existen 150 pares inmovilizados en tiendas Tier 3 con rotación nula. Se sugiere un movimiento de inventario inmediato.</li>
+              <li><strong>Transferencia Recomendada:</strong> Existen 150 pares inmovilizados en tiendas Tier 3 con rotación nula. Se sugiere un movement de inventario inmediato.</li>
             </ul>
             <p><strong>Conclusión del Agente:</strong> Resolver esta curva antes del próximo fin de semana mitigará las pérdidas y mejorará el ROI de las pautas activas en Meta Ads que dirigen tráfico a este producto.</p>
           </>
@@ -406,22 +452,19 @@ export default function FeatureMock() {
     }
 
     return (
-      <div className="bg-white p-6 rounded-2xl border border-blue-100 shadow-sm text-gray-700 text-sm leading-relaxed mt-2 relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
-        <div className="flex items-center gap-2 mb-4 border-b border-gray-100 pb-3">
-          <Bot className="text-blue-600" size={20} />
-          <h3 className="text-lg font-semibold text-gray-900">Debrief Analítico del Agente</h3>
-        </div>
-        {content}
+      <div className="mt-2">
+        <DebriefWidget title="Debrief Analítico del Agente">
+          {content}
+        </DebriefWidget>
       </div>
     );
   };
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 h-full">
-      {/* Data Panel */}
+      {/* Central Content Area */}
       <div className="flex-1 flex flex-col gap-6 overflow-y-auto pr-2 pb-4">
-        <div className="mb-[-10px]">
+        <div className="mb-[-10px] flex items-center justify-between">
           <button 
             onClick={() => navigate(-1)}
             className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors bg-white border border-gray-200 px-3 py-1.5 rounded-lg shadow-sm hover:shadow"
@@ -437,10 +480,6 @@ export default function FeatureMock() {
               Mock de interfaz para la funcionalidad generada por el agente.
             </p>
           </div>
-          <div className="flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full text-sm font-medium border border-blue-200">
-            <Bot size={16} />
-            Agente Activo
-          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -450,16 +489,19 @@ export default function FeatureMock() {
             trend="up" 
             trendValue="+2.1%" 
             icon={Lightbulb} 
+            onOpenChat={handleOpenChat}
           />
           <ScoreCard 
             title="Impacto Estimado" 
             value="Alto" 
             icon={TrendingUp} 
+            onOpenChat={handleOpenChat}
           />
           <ScoreCard 
             title="Alertas Activas" 
             value="3" 
             icon={AlertTriangle} 
+            onOpenChat={handleOpenChat}
           />
         </div>
 
@@ -470,17 +512,49 @@ export default function FeatureMock() {
         </div>
       </div>
 
-      {/* Chat Panel */}
-      <div className="w-full lg:w-[400px] shrink-0">
-        <ChatPanel 
-          moduleName={title}
-          contextMessage={`Hola. He generado el debrief analítico para ${title}. Noté patrones determinantes que requieren atención ejecutiva basada en el motor de inferencia. ¿Sobre qué dato específico de este reporte querés profundizar?`}
-          suggestions={[
-            `Desglosar los hallazgos principales de ${title}`,
-            "Proyectar impacto financiero de las recomendaciones",
-            "¿Qué acciones preventivas sugiere el modelo?"
-          ]}
-        />
+      {/* History & Chat Sidebar Panel */}
+      <div className={`w-full shrink-0 transition-all duration-300 ${isHistoryCollapsed ? "lg:w-12" : isChatOpen ? "lg:w-[400px]" : "lg:w-[320px]"}`}>
+        {isHistoryCollapsed ? (
+          <ConversationHistoryPanel
+            moduleKey={`feature_${featureId || 'unknown'}`}
+            activeConversationId={activeConversation?.id || null}
+            onSelectConversation={handleSelectConversation}
+            refreshTrigger={refreshTrigger}
+            isCollapsed={true}
+            onToggleCollapse={() => setIsHistoryCollapsed(false)}
+            onOpenChat={() => handleOpenChat()}
+          />
+        ) : isChatOpen ? (
+          <div className="h-[calc(100vh-8rem)]">
+            <ChatPanel
+              moduleKey={`feature_${featureId || 'unknown'}`}
+              moduleName={title}
+              contextMessage={chatContext || (activeConversation ? undefined : `Hola. He generado el debrief analítico para ${title}. Noté patrones determinantes que requieren atención ejecutiva basada en el motor de inferencia. ¿Sobre qué dato específico de este reporte querés profundizar?`)}
+              suggestions={[
+                `Desglosar los hallazgos principales de ${title}`,
+                "Proyectar impacto financiero de las recomendaciones",
+                "¿Qué acciones preventivas sugiere el modelo?"
+              ]}
+              initialConversation={activeConversation}
+              onClose={() => {
+                setIsChatOpen(false);
+                setActiveConversation(null);
+              }}
+              onSaveSuccess={handleSaveSuccess}
+              onToggleCollapse={() => setIsHistoryCollapsed(true)}
+            />
+          </div>
+        ) : (
+          <ConversationHistoryPanel
+            moduleKey={`feature_${featureId || 'unknown'}`}
+            activeConversationId={activeConversation?.id || null}
+            onSelectConversation={handleSelectConversation}
+            refreshTrigger={refreshTrigger}
+            isCollapsed={false}
+            onToggleCollapse={() => setIsHistoryCollapsed(true)}
+            onOpenChat={() => handleOpenChat()}
+          />
+        )}
       </div>
     </div>
   );

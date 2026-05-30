@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { PieChart, LineChart, BarChart3, ArrowRight, Sparkles, HeartHandshake, MessageSquare, BrainCircuit } from 'lucide-react';
+import { PieChart, LineChart, BarChart3, ArrowRight, Sparkles, BrainCircuit } from 'lucide-react';
 import { RecommendationsWidget } from '../components/WidgetCards';
 import { motion } from 'framer-motion';
 
@@ -37,28 +37,20 @@ export default function Dashboard() {
       color: 'bg-purple-50 text-purple-600',
       delay: 0.3,
     },
-    {
+    /* {
       id: 'customer-support',
       title: 'Soporte al Cliente',
       description: 'Analizá el sentimiento de tus clientes, métricas de satisfacción y el rendimiento de los canales de atención.',
       icon: HeartHandshake,
       color: 'bg-pink-50 text-pink-600',
       delay: 0.4,
-    },
-    {
-      id: 'global-chat-history',
-      title: 'Historial Global de Chat',
-      description: 'Revisá el historial de todas tus conversaciones y análisis transversales realizados con el agente de IA.',
-      icon: MessageSquare,
-      color: 'bg-orange-50 text-orange-600',
-      delay: 0.5,
-    }
+    } */
   ];
 
   const globalRecommendations = [
     { text: "Asics y Nike lideran en precio mediano, revisá la dispersión de precios para ajustar tu posicionamiento.", type: "info" as const, link: "/market-research" },
     { text: "Alto riesgo de quiebre de stock en Racer Carbon 3 (talle 42). Sugerimos reabastecimiento inmediato.", type: "warning" as const, link: "/company-insights" },
-    { text: "El sentimiento negativo en Redes Sociales es alto. Revisa quejas sobre envíos.", type: "action" as const, link: "/customer-support" },
+    // { text: "El sentimiento negativo en Redes Sociales es alto. Revisa quejas sobre envíos.", type: "action" as const, link: "/customer-support" },
   ];
 
   return (
@@ -112,23 +104,6 @@ export default function Dashboard() {
             </motion.div>
           );
         })}
-      </div>
-
-      <div className="mt-12 bg-yupana-dark rounded-2xl p-8 text-white relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-yupana-green/10 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl"></div>
-        
-        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div>
-            <h3 className="text-xl font-bold mb-2">¿Buscás algo específico?</h3>
-            <p className="text-gray-400 max-w-xl">
-              Nuestro agente de IA puede analizar información transversal cruzando datos del mercado con el rendimiento de tu empresa.
-            </p>
-          </div>
-          <button className="whitespace-nowrap px-6 py-3 bg-yupana-green text-black font-semibold rounded-lg hover:bg-[#bce600] transition-colors">
-            Iniciar Chat Global
-          </button>
-        </div>
       </div>
     </div>
   );

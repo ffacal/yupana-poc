@@ -3,9 +3,16 @@ import { Link } from 'react-router-dom';
 import { Box, Package, Activity, BrainCircuit, AlertTriangle } from 'lucide-react';
 import { ScoreCard, LineChartWidget, BarChartWidget, PieChartWidget, RecommendationsWidget } from '../components/WidgetCards';
 import ChatPanel from '../components/ChatPanel';
+import ConversationHistoryPanel from '../components/ConversationHistoryPanel';
+import type { Conversation } from '../utils/chatDb';
 
 export default function CompanyInsights() {
   const [timeFilter, setTimeFilter] = useState<'monthly' | 'quarterly' | 'yearly'>('monthly');
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [chatContext, setChatContext] = useState<string | undefined>(undefined);
+  const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(true);
 
   const getMultiplier = () => {
     if (timeFilter === 'quarterly') return 3;
@@ -13,6 +20,29 @@ export default function CompanyInsights() {
     return 1;
   };
   const mult = getMultiplier();
+
+  const handleOpenChat = (contextPrompt?: string) => {
+    setChatContext(contextPrompt);
+    setActiveConversation(null);
+    setIsChatOpen(true);
+    setIsHistoryCollapsed(false);
+  };
+
+  const handleSelectConversation = (convo: Conversation | null) => {
+    setActiveConversation(convo);
+    setChatContext(undefined);
+    if (convo) {
+      setIsChatOpen(true);
+      setIsHistoryCollapsed(false);
+    } else {
+      setIsChatOpen(false);
+    }
+  };
+
+  const handleSaveSuccess = (savedConvo: Conversation) => {
+    setActiveConversation(savedConvo);
+    setRefreshTrigger(prev => prev + 1);
+  };
 
   const salesData = [
     { month: 'Ene', sellIn: 4000 * mult, sellOut: 2400 * mult },
@@ -65,32 +95,34 @@ export default function CompanyInsights() {
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 h-full">
-      {/* Data Panel */}
+      {/* Central Content Area */}
       <div className="flex-1 flex flex-col gap-6 overflow-y-auto pr-2 pb-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Insights</h2>
             <p className="text-gray-500">Métricas operativas conectadas a tu ERP.</p>
           </div>
-          <div className="flex items-center gap-2 bg-white rounded-lg p-1 border border-gray-200">
-            <button 
-              onClick={() => setTimeFilter('monthly')}
-              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${timeFilter === 'monthly' ? 'bg-gray-100 text-black' : 'text-gray-500 hover:text-gray-900'}`}
-            >
-              Mensual
-            </button>
-            <button 
-              onClick={() => setTimeFilter('quarterly')}
-              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${timeFilter === 'quarterly' ? 'bg-gray-100 text-black' : 'text-gray-500 hover:text-gray-900'}`}
-            >
-              Trimestral
-            </button>
-            <button 
-              onClick={() => setTimeFilter('yearly')}
-              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${timeFilter === 'yearly' ? 'bg-gray-100 text-black' : 'text-gray-500 hover:text-gray-900'}`}
-            >
-              Anual
-            </button>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 bg-white rounded-lg p-1 border border-gray-200">
+              <button 
+                onClick={() => setTimeFilter('monthly')}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${timeFilter === 'monthly' ? 'bg-gray-100 text-black' : 'text-gray-500 hover:text-gray-900'}`}
+              >
+                Mensual
+              </button>
+              <button 
+                onClick={() => setTimeFilter('quarterly')}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${timeFilter === 'quarterly' ? 'bg-gray-100 text-black' : 'text-gray-500 hover:text-gray-900'}`}
+              >
+                Trimestral
+              </button>
+              <button 
+                onClick={() => setTimeFilter('yearly')}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${timeFilter === 'yearly' ? 'bg-gray-100 text-black' : 'text-gray-500 hover:text-gray-900'}`}
+              >
+                Anual
+              </button>
+            </div>
           </div>
         </div>
 
@@ -131,6 +163,7 @@ export default function CompanyInsights() {
             trend="up" 
             trendValue="+12%" 
             icon={Package} 
+            onOpenChat={handleOpenChat}
           />
           <ScoreCard 
             title="Inventario Total" 
@@ -138,11 +171,13 @@ export default function CompanyInsights() {
             trend="down" 
             trendValue="-3%" 
             icon={Box} 
+            onOpenChat={handleOpenChat}
           />
           <ScoreCard 
             title="Rotación" 
             value="4.2x" 
             icon={Activity} 
+            onOpenChat={handleOpenChat}
           />
         </div>
 
@@ -152,12 +187,14 @@ export default function CompanyInsights() {
             data={salesData}
             dataKeyX="month"
             dataKeyY="sellOut"
+            onOpenChat={handleOpenChat}
           />
           <BarChartWidget 
             title="Top 5 Productos"
             data={topProducts}
             dataKeyX="name"
             bars={[{ key: 'sales', name: 'Ventas', color: '#ccff00' }]}
+            onOpenChat={handleOpenChat}
           />
         </div>
 
@@ -168,37 +205,68 @@ export default function CompanyInsights() {
             dataKey="value"
             nameKey="name"
             colors={['#10b981', '#3b82f6', '#f59e0b']}
+            onOpenChat={handleOpenChat}
           />
           <BarChartWidget 
             title="Top Retailers"
             data={topRetailersData}
             dataKeyX="name"
             bars={[{ key: 'sales', name: 'Ventas', color: '#3b82f6' }]}
+            onOpenChat={handleOpenChat}
           />
           <BarChartWidget 
             title="Top Distributors"
             data={topDistributorsData}
             dataKeyX="name"
             bars={[{ key: 'sales', name: 'Ventas', color: '#8b5cf6' }]}
+            onOpenChat={handleOpenChat}
           />
         </div>
-
-
-
-
       </div>
 
-      {/* Chat Panel */}
-      <div className="w-full lg:w-[400px] shrink-0">
-        <ChatPanel 
-          moduleName="Insights"
-          contextMessage="Hola. Analizando los datos de operaciones: la rotación de inventario está en 4.2x y hay riesgo de quiebre de stock en Racer Carbon 3. ¿En qué métricas de Sell-out o distribución te gustaría profundizar?"
-          suggestions={[
-            "¿Cuál es la causa del quiebre de stock en Racer Carbon 3?",
-            "Analizar distribución de ventas por canal (D2C vs Retail)",
-            "Comparar rendimiento de los Top Distribuidores"
-          ]}
-        />
+      {/* History & Chat Sidebar Panel */}
+      <div className={`w-full shrink-0 transition-all duration-300 ${isHistoryCollapsed ? "lg:w-12" : isChatOpen ? "lg:w-[400px]" : "lg:w-[320px]"}`}>
+        {isHistoryCollapsed ? (
+          <ConversationHistoryPanel
+            moduleKey="company_insights"
+            activeConversationId={activeConversation?.id || null}
+            onSelectConversation={handleSelectConversation}
+            refreshTrigger={refreshTrigger}
+            isCollapsed={true}
+            onToggleCollapse={() => setIsHistoryCollapsed(false)}
+            onOpenChat={() => handleOpenChat()}
+          />
+        ) : isChatOpen ? (
+          <div className="h-[calc(100vh-8rem)]">
+            <ChatPanel
+              moduleKey="company_insights"
+              moduleName="Insights"
+              contextMessage={chatContext || (activeConversation ? undefined : "Hola. Analizando los datos de operaciones: la rotación de inventario está en 4.2x y hay riesgo de quiebre de stock en Racer Carbon 3. ¿En qué métricas de Sell-out o distribución te gustaría profundizar?")}
+              suggestions={[
+                "¿Cuál es la causa del quiebre de stock en Racer Carbon 3?",
+                "Analizar distribución de ventas por canal (D2C vs Retail)",
+                "Comparar rendimiento de los Top Distribuidores"
+              ]}
+              initialConversation={activeConversation}
+              onClose={() => {
+                setIsChatOpen(false);
+                setActiveConversation(null);
+              }}
+              onSaveSuccess={handleSaveSuccess}
+              onToggleCollapse={() => setIsHistoryCollapsed(true)}
+            />
+          </div>
+        ) : (
+          <ConversationHistoryPanel
+            moduleKey="company_insights"
+            activeConversationId={activeConversation?.id || null}
+            onSelectConversation={handleSelectConversation}
+            refreshTrigger={refreshTrigger}
+            isCollapsed={false}
+            onToggleCollapse={() => setIsHistoryCollapsed(true)}
+            onOpenChat={() => handleOpenChat()}
+          />
+        )}
       </div>
     </div>
   );

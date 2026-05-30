@@ -1,8 +1,40 @@
+import { useState } from 'react';
 import { Smile, Clock, MessageSquareWarning } from 'lucide-react';
 import { ScoreCard, LineChartWidget, BarChartWidget, RecommendationsWidget } from '../components/WidgetCards';
 import ChatPanel from '../components/ChatPanel';
+import ConversationHistoryPanel from '../components/ConversationHistoryPanel';
+import type { Conversation } from '../utils/chatDb';
 
 export default function CustomerSupport() {
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [chatContext, setChatContext] = useState<string | undefined>(undefined);
+  const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(true);
+
+  const handleOpenChat = (contextPrompt?: string) => {
+    setChatContext(contextPrompt);
+    setActiveConversation(null);
+    setIsChatOpen(true);
+    setIsHistoryCollapsed(false);
+  };
+
+  const handleSelectConversation = (convo: Conversation | null) => {
+    setActiveConversation(convo);
+    setChatContext(undefined);
+    if (convo) {
+      setIsChatOpen(true);
+      setIsHistoryCollapsed(false);
+    } else {
+      setIsChatOpen(false);
+    }
+  };
+
+  const handleSaveSuccess = (savedConvo: Conversation) => {
+    setActiveConversation(savedConvo);
+    setRefreshTrigger(prev => prev + 1);
+  };
+
   const sentimentOverTime = [
     { month: 'Ene', positive: 65, neutral: 20, negative: 15 },
     { month: 'Feb', positive: 68, neutral: 18, negative: 14 },
@@ -35,11 +67,13 @@ export default function CustomerSupport() {
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 h-full">
-      {/* Data Panel */}
+      {/* Central Content Area */}
       <div className="flex-1 flex flex-col gap-6 overflow-y-auto pr-2 pb-4">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Soporte al Cliente y Sentimiento</h2>
-          <p className="text-gray-500">Métricas de interacción con la marca, satisfacción y puntos de contacto.</p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Soporte al Cliente y Sentimiento</h2>
+            <p className="text-gray-500">Métricas de interacción con la marca, satisfacción y puntos de contacto.</p>
+          </div>
         </div>
 
         <div className="mb-6">
@@ -54,6 +88,7 @@ export default function CustomerSupport() {
             trend="up" 
             trendValue="+4%" 
             icon={Smile} 
+            onOpenChat={handleOpenChat}
           />
           <ScoreCard 
             title="Tiempo Medio de Resolución" 
@@ -61,6 +96,7 @@ export default function CustomerSupport() {
             trend="down" 
             trendValue="-30m" 
             icon={Clock} 
+            onOpenChat={handleOpenChat}
           />
           <ScoreCard 
             title="Tickets Activos" 
@@ -68,6 +104,7 @@ export default function CustomerSupport() {
             trend="down" 
             trendValue="-12%" 
             icon={MessageSquareWarning} 
+            onOpenChat={handleOpenChat}
           />
         </div>
 
@@ -78,6 +115,7 @@ export default function CustomerSupport() {
             dataKeyX="month"
             dataKeyY="positive"
             strokeColor="#ccff00"
+            onOpenChat={handleOpenChat}
           />
           <BarChartWidget 
             title="Sentimiento por Canal de Contacto (%)"
@@ -87,6 +125,7 @@ export default function CustomerSupport() {
               { key: 'positive', name: 'Positivo', color: '#ccff00' },
               { key: 'negative', name: 'Negativo', color: '#1a1a1a' }
             ]}
+            onOpenChat={handleOpenChat}
           />
         </div>
 
@@ -99,23 +138,54 @@ export default function CustomerSupport() {
               { key: 'initial', name: 'Sentimiento al Iniciar', color: '#9ca3af' },
               { key: 'final', name: 'Sentimiento al Finalizar', color: '#10b981' }
             ]}
+            onOpenChat={handleOpenChat}
           />
         </div>
-
-
       </div>
 
-      {/* Chat Panel */}
-      <div className="w-full lg:w-[400px] shrink-0">
-        <ChatPanel 
-          moduleName="Customer Support"
-          contextMessage="Hola. Analizando el sentimiento de clientes: el CSAT general es del 82%, pero notamos un 40% de sentimiento negativo en Redes Sociales, principalmente por demoras de envío. ¿Qué área de atención te gustaría revisar?"
-          suggestions={[
-            "Profundizar en quejas por demoras en envíos (E-commerce)",
-            "Comparar efectividad de Retail vs Redes Sociales",
-            "Analizar evolución del CSAT en los últimos 3 meses"
-          ]}
-        />
+      {/* History & Chat Sidebar Panel */}
+      <div className={`w-full shrink-0 transition-all duration-300 ${isHistoryCollapsed ? "lg:w-12" : isChatOpen ? "lg:w-[400px]" : "lg:w-[320px]"}`}>
+        {isHistoryCollapsed ? (
+          <ConversationHistoryPanel
+            moduleKey="customer_support"
+            activeConversationId={activeConversation?.id || null}
+            onSelectConversation={handleSelectConversation}
+            refreshTrigger={refreshTrigger}
+            isCollapsed={true}
+            onToggleCollapse={() => setIsHistoryCollapsed(false)}
+            onOpenChat={() => handleOpenChat()}
+          />
+        ) : isChatOpen ? (
+          <div className="h-[calc(100vh-8rem)]">
+            <ChatPanel
+              moduleKey="customer_support"
+              moduleName="Customer Support"
+              contextMessage={chatContext || (activeConversation ? undefined : "Hola. Analizando el sentimiento de clientes: el CSAT general es del 82%, pero notamos un 40% de sentimiento negativo en Redes Sociales, principalmente por demoras de envío. ¿Qué área de atención te gustaría revisar?")}
+              suggestions={[
+                "Profundizar en quejas por demoras en envíos (E-commerce)",
+                "Comparar efectividad de Retail vs Redes Sociales",
+                "Analizar evolución del CSAT en los últimos 3 meses"
+              ]}
+              initialConversation={activeConversation}
+              onClose={() => {
+                setIsChatOpen(false);
+                setActiveConversation(null);
+              }}
+              onSaveSuccess={handleSaveSuccess}
+              onToggleCollapse={() => setIsHistoryCollapsed(true)}
+            />
+          </div>
+        ) : (
+          <ConversationHistoryPanel
+            moduleKey="customer_support"
+            activeConversationId={activeConversation?.id || null}
+            onSelectConversation={handleSelectConversation}
+            refreshTrigger={refreshTrigger}
+            isCollapsed={false}
+            onToggleCollapse={() => setIsHistoryCollapsed(true)}
+            onOpenChat={() => handleOpenChat()}
+          />
+        )}
       </div>
     </div>
   );

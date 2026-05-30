@@ -9,8 +9,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Menu,
-  HeartHandshake,
-  MessageSquare,
   BrainCircuit
 } from 'lucide-react';
 import clsx from 'clsx';
@@ -25,8 +23,7 @@ export default function Layout() {
     { path: '/market-research', label: 'Benchmark de Mercado', icon: PieChart },
     { path: '/company-insights', label: 'Insights', icon: LineChart },
     { path: '/executive-report', label: 'Reporte Ejecutivo', icon: BarChart3 },
-    { path: '/customer-support', label: 'Soporte al Cliente', icon: HeartHandshake },
-    { path: '/global-chat-history', label: 'Historial Global de Chat', icon: MessageSquare },
+    // { path: '/customer-support', label: 'Soporte al Cliente', icon: HeartHandshake },
   ];
 
   const getPageTitle = () => {

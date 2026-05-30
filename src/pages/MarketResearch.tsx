@@ -1,10 +1,17 @@
 import { useState } from 'react';
 import { ShoppingBag, TrendingUp, DollarSign } from 'lucide-react';
-import { ScoreCard, BarChartWidget, PieChartWidget } from '../components/WidgetCards';
+import { ScoreCard, BarChartWidget, PieChartWidget, DebriefWidget } from '../components/WidgetCards';
 import ChatPanel from '../components/ChatPanel';
+import ConversationHistoryPanel from '../components/ConversationHistoryPanel';
+import type { Conversation } from '../utils/chatDb';
 
 export default function MarketResearch() {
   const [timeFilter, setTimeFilter] = useState<'monthly' | 'quarterly' | 'yearly'>('monthly');
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [chatContext, setChatContext] = useState<string | undefined>(undefined);
+  const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(true);
 
   const getMultiplier = () => {
     if (timeFilter === 'quarterly') return 3;
@@ -12,6 +19,29 @@ export default function MarketResearch() {
     return 1;
   };
   const mult = getMultiplier();
+
+  const handleOpenChat = (contextPrompt?: string) => {
+    setChatContext(contextPrompt);
+    setActiveConversation(null);
+    setIsChatOpen(true);
+    setIsHistoryCollapsed(false);
+  };
+
+  const handleSelectConversation = (convo: Conversation | null) => {
+    setActiveConversation(convo);
+    setChatContext(undefined);
+    if (convo) {
+      setIsChatOpen(true);
+      setIsHistoryCollapsed(false);
+    } else {
+      setIsChatOpen(false);
+    }
+  };
+
+  const handleSaveSuccess = (savedConvo: Conversation) => {
+    setActiveConversation(savedConvo);
+    setRefreshTrigger(prev => prev + 1);
+  };
 
   const priceData = [
     { brand: 'adidas', price: 182999 },
@@ -84,51 +114,41 @@ export default function MarketResearch() {
 
   const pieColors = ['#ccff00', '#1a1a1a', '#4b5563', '#9ca3af', '#60a5fa', '#f87171'];
 
-
-
-
-
   return (
     <div className="flex flex-col lg:flex-row gap-6 h-full">
-      {/* Data Panel */}
+      {/* Central Content Area */}
       <div className="flex-1 flex flex-col gap-6 overflow-y-auto pr-2 pb-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Benchmark de Mercado</h2>
             <p className="text-gray-500">Análisis competitivo de precios en e-commerce directos (D2C).</p>
           </div>
-          <div className="flex items-center gap-2 bg-white rounded-lg p-1 border border-gray-200">
-            <button 
-              onClick={() => setTimeFilter('monthly')}
-              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${timeFilter === 'monthly' ? 'bg-gray-100 text-black' : 'text-gray-500 hover:text-gray-900'}`}
-            >
-              Mensual
-            </button>
-            <button 
-              onClick={() => setTimeFilter('quarterly')}
-              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${timeFilter === 'quarterly' ? 'bg-gray-100 text-black' : 'text-gray-500 hover:text-gray-900'}`}
-            >
-              Trimestral
-            </button>
-            <button 
-              onClick={() => setTimeFilter('yearly')}
-              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${timeFilter === 'yearly' ? 'bg-gray-100 text-black' : 'text-gray-500 hover:text-gray-900'}`}
-            >
-              Anual
-            </button>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 bg-white rounded-lg p-1 border border-gray-200">
+              <button 
+                onClick={() => setTimeFilter('monthly')}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${timeFilter === 'monthly' ? 'bg-gray-100 text-black' : 'text-gray-500 hover:text-gray-900'}`}
+              >
+                Mensual
+              </button>
+              <button 
+                onClick={() => setTimeFilter('quarterly')}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${timeFilter === 'quarterly' ? 'bg-gray-100 text-black' : 'text-gray-500 hover:text-gray-900'}`}
+              >
+                Trimestral
+              </button>
+              <button 
+                onClick={() => setTimeFilter('yearly')}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${timeFilter === 'yearly' ? 'bg-gray-100 text-black' : 'text-gray-500 hover:text-gray-900'}`}
+              >
+                Anual
+              </button>
+            </div>
           </div>
         </div>
 
         <div className="mb-6">
-          <div className="bg-white p-6 rounded-2xl border border-blue-100 shadow-sm text-gray-700 text-sm leading-relaxed relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
-            <div className="flex items-center gap-2 mb-4 border-b border-gray-100 pb-3">
-              <div className="w-8 h-8 rounded-md flex items-center justify-center bg-blue-50 text-blue-600">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-bot"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900">Debrief Analítico del Agente</h3>
-            </div>
-            
+          <DebriefWidget title="Debrief Analítico del Agente">
             <p className="mb-3">El motor de inferencia analizó el posicionamiento D2C y detectó que <strong>Asics y Nike</strong> lideran en el segmento premium de Running, validado por un precio mediano de mercado en alza ($163.500, +5.2%).</p>
             <ul className="list-disc pl-5 mb-3 space-y-1">
               <li><strong>Alerta de Posicionamiento:</strong> Fila y Under Armour están absorbiendo la cuota de mercado en el segmento accesible (entry-level). Nuestra marca se encuentra actualmente un 12% por encima del promedio del mercado en la categoría de entrada.</li>
@@ -136,7 +156,7 @@ export default function MarketResearch() {
               <li><strong>Rendimiento de Canales:</strong> El canal de E-commerce propio (D2C) está logrando un 35% de market share en comparación con competidores clave, consolidándose como nuestro canal más fuerte frente al retail tradicional.</li>
             </ul>
             <p><strong>Recomendación Ejecutiva:</strong> Mantener el impulso en el E-commerce propio e implementar paquetes promocionales (bundles) en el segmento de entrada para recuperar terreno sin degradar el precio base frente a Fila y Under Armour.</p>
-          </div>
+          </DebriefWidget>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -146,16 +166,19 @@ export default function MarketResearch() {
             trend="up" 
             trendValue="+5.2%" 
             icon={DollarSign} 
+            onOpenChat={handleOpenChat}
           />
           <ScoreCard 
             title="Marca Premium" 
             value="Asics" 
             icon={TrendingUp} 
+            onOpenChat={handleOpenChat}
           />
           <ScoreCard 
             title="Marca Accesible" 
             value="Fila" 
             icon={ShoppingBag} 
+            onOpenChat={handleOpenChat}
           />
         </div>
 
@@ -165,12 +188,14 @@ export default function MarketResearch() {
             data={priceData}
             dataKeyX="brand"
             bars={[{ key: 'price', name: 'Precio ($)', color: '#1a1a1a' }]}
+            onOpenChat={handleOpenChat}
           />
           <BarChartWidget 
             title={`Ventas Totales (Unidades) por Marca - ${timeFilter === 'monthly' ? 'Mes' : timeFilter === 'quarterly' ? 'Trimestre' : 'Año'}`}
             data={unitSalesData}
             dataKeyX="brand"
             bars={[{ key: 'sales', name: 'Unidades Vendidas', color: '#ccff00' }]}
+            onOpenChat={handleOpenChat}
           />
         </div>
 
@@ -180,6 +205,7 @@ export default function MarketResearch() {
             data={topRetailersData}
             dataKeyX="name"
             bars={[{ key: 'sales', name: 'Ventas', color: '#3b82f6' }]}
+            onOpenChat={handleOpenChat}
           />
           <PieChartWidget 
             title="Market Snapshot: Market Share por Jugador"
@@ -187,6 +213,7 @@ export default function MarketResearch() {
             dataKey="val"
             nameKey="name"
             colors={['#3b82f6', '#f43f5e', '#eab308', '#9ca3af']}
+            onOpenChat={handleOpenChat}
           />
         </div>
 
@@ -199,6 +226,7 @@ export default function MarketResearch() {
               dataKey="share"
               nameKey="brand"
               colors={pieColors}
+              onOpenChat={handleOpenChat}
             />
             <PieChartWidget 
               title="E-commerce Propio"
@@ -206,6 +234,7 @@ export default function MarketResearch() {
               dataKey="share"
               nameKey="brand"
               colors={pieColors}
+              onOpenChat={handleOpenChat}
             />
             <PieChartWidget 
               title="MercadoLibre"
@@ -213,6 +242,7 @@ export default function MarketResearch() {
               dataKey="share"
               nameKey="brand"
               colors={pieColors}
+              onOpenChat={handleOpenChat}
             />
             <PieChartWidget 
               title="Otros Canales"
@@ -220,26 +250,55 @@ export default function MarketResearch() {
               dataKey="share"
               nameKey="brand"
               colors={pieColors}
+              onOpenChat={handleOpenChat}
             />
           </div>
         </div>
-
-
-
-
       </div>
 
-      {/* Chat Panel */}
-      <div className="w-full lg:w-[400px] shrink-0">
-        <ChatPanel 
-          moduleName="Benchmark de Mercado"
-          contextMessage="Hola. Analizando el mercado D2C (Running): la mediana de mercado está en $163.500. Asics lidera en segmento premium mientras Fila ofrece opciones accesibles. ¿Qué posicionamiento competitivo te gustaría analizar?"
-          suggestions={[
-            "Comparar posicionamiento de precios de Nike vs Adidas",
-            "Analizar Market Share en el canal Retail",
-            "Identificar oportunidades en e-commerce propio"
-          ]}
-        />
+      {/* History & Chat Sidebar Panel */}
+      <div className={`w-full shrink-0 transition-all duration-300 ${isHistoryCollapsed ? "lg:w-12" : isChatOpen ? "lg:w-[400px]" : "lg:w-[320px]"}`}>
+        {isHistoryCollapsed ? (
+          <ConversationHistoryPanel
+            moduleKey="market_research"
+            activeConversationId={activeConversation?.id || null}
+            onSelectConversation={handleSelectConversation}
+            refreshTrigger={refreshTrigger}
+            isCollapsed={true}
+            onToggleCollapse={() => setIsHistoryCollapsed(false)}
+            onOpenChat={() => handleOpenChat()}
+          />
+        ) : isChatOpen ? (
+          <div className="h-[calc(100vh-8rem)]">
+            <ChatPanel
+              moduleKey="market_research"
+              moduleName="Benchmark de Mercado"
+              contextMessage={chatContext || (activeConversation ? undefined : "Hola. Analizando el mercado D2C (Running): la mediana de mercado está en $163.500. Asics lidera en segmento premium mientras Fila ofrece opciones accesibles. ¿Qué posicionamiento competitivo te gustaría analizar?")}
+              suggestions={[
+                "Comparar posicionamiento de precios de Nike vs Adidas",
+                "Analizar Market Share en el canal Retail",
+                "Identificar oportunidades en e-commerce propio"
+              ]}
+              initialConversation={activeConversation}
+              onClose={() => {
+                setIsChatOpen(false);
+                setActiveConversation(null);
+              }}
+              onSaveSuccess={handleSaveSuccess}
+              onToggleCollapse={() => setIsHistoryCollapsed(true)}
+            />
+          </div>
+        ) : (
+          <ConversationHistoryPanel
+            moduleKey="market_research"
+            activeConversationId={activeConversation?.id || null}
+            onSelectConversation={handleSelectConversation}
+            refreshTrigger={refreshTrigger}
+            isCollapsed={false}
+            onToggleCollapse={() => setIsHistoryCollapsed(true)}
+            onOpenChat={() => handleOpenChat()}
+          />
+        )}
       </div>
     </div>
   );
