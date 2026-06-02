@@ -1,20 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  ResponsiveContainer, 
-  LineChart as RechartsLineChart, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  BarChart as RechartsBarChart, 
+import {
+  ResponsiveContainer,
+  LineChart as RechartsLineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  BarChart as RechartsBarChart,
   Bar,
   Legend,
   PieChart as RechartsPieChart,
   Pie,
   Cell
 } from 'recharts';
+import * as d3 from 'd3';
 import { AlertCircle, TrendingUp, TrendingDown, ChevronDown, ChevronUp, Bot, Sparkles } from 'lucide-react';
 
 export function ScoreCard({ title, value, trend, trendValue, trendLabel = 'vs mes anterior', icon: Icon, onOpenChat }: { title: string, value: string, trend?: 'up' | 'down' | 'neutral', trendValue?: string, trendLabel?: string, icon?: React.ElementType, onOpenChat?: (contextPrompt?: string) => void }) {
@@ -121,6 +122,542 @@ export function BarChartWidget({ title, data, dataKeyX, bars, onOpenChat }: { ti
             ))}
           </RechartsBarChart>
         </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
+export function D3BarChartWidget({ title, data, dataKeyX, bars, onOpenChat }: { title: string, data: any[], dataKeyX: string, bars: { key: string, color: string, name?: string }[], onOpenChat?: (contextPrompt?: string) => void }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!data || data.length === 0 || !svgRef.current || !containerRef.current) return;
+
+    const container = containerRef.current;
+
+    const draw = () => {
+      const { width, height } = container.getBoundingClientRect();
+      if (width === 0 || height === 0) return;
+
+      const svg = d3.select(svgRef.current);
+      svg.selectAll('*').remove();
+      svg.attr('width', width).attr('height', height);
+
+      const margin = { top: 16, right: 16, bottom: 44, left: 56 };
+      const innerWidth = Math.max(0, width - margin.left - margin.right);
+      const innerHeight = Math.max(0, height - margin.top - margin.bottom);
+
+      const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+      const categories = data.map(d => String(d[dataKeyX]));
+      const x0 = d3.scaleBand<string>()
+        .domain(categories)
+        .range([0, innerWidth])
+        .padding(0.25);
+
+      const x1 = d3.scaleBand<string>()
+        .domain(bars.map(b => b.key))
+        .range([0, x0.bandwidth()])
+        .padding(0.08);
+
+      const yMax = d3.max(data, d => d3.max(bars, b => Number(d[b.key]) || 0)) || 0;
+      const y = d3.scaleLinear()
+        .domain([0, yMax])
+        .nice()
+        .range([innerHeight, 0]);
+
+      // Horizontal gridlines (subtle, dashed) — emulate recharts CartesianGrid
+      g.append('g')
+        .attr('class', 'grid')
+        .call(
+          d3.axisLeft(y)
+            .tickSize(-innerWidth)
+            .tickFormat(() => '')
+            .ticks(5)
+        )
+        .call(sel => sel.select('.domain').remove())
+        .call(sel => sel.selectAll('line')
+          .attr('stroke', '#f1f5f9')
+          .attr('stroke-dasharray', '3 3'));
+
+      // Y axis (no domain line, gray ticks)
+      const yAxis = d3.axisLeft(y)
+        .ticks(5)
+        .tickFormat(d => d3.format('~s')(d as number));
+
+      g.append('g')
+        .call(yAxis)
+        .call(sel => sel.select('.domain').remove())
+        .call(sel => sel.selectAll('line').remove())
+        .call(sel => sel.selectAll('text')
+          .attr('fill', '#64748b')
+          .style('font-size', '12px'));
+
+      // X axis (no domain line, gray ticks, offset)
+      g.append('g')
+        .attr('transform', `translate(0,${innerHeight})`)
+        .call(d3.axisBottom(x0).tickSize(0).tickPadding(10))
+        .call(sel => sel.select('.domain').remove())
+        .call(sel => sel.selectAll('text')
+          .attr('fill', '#64748b')
+          .style('font-size', '12px'));
+
+      // Tooltip
+      const tooltip = d3.select(tooltipRef.current);
+
+      // Bars (rounded top corners via path so we can match radius=[4,4,0,0])
+      const radius = 4;
+      const roundedTopRect = (xPos: number, yPos: number, w: number, h: number, r: number) => {
+        const rr = Math.min(r, w / 2, h);
+        if (h <= 0 || w <= 0) return '';
+        return `M${xPos},${yPos + h} L${xPos},${yPos + rr} Q${xPos},${yPos} ${xPos + rr},${yPos} L${xPos + w - rr},${yPos} Q${xPos + w},${yPos} ${xPos + w},${yPos + rr} L${xPos + w},${yPos + h} Z`;
+      };
+
+      data.forEach(d => {
+        const group = g.append('g').attr('transform', `translate(${x0(String(d[dataKeyX]))},0)`);
+        bars.forEach(b => {
+          const value = Number(d[b.key]) || 0;
+          const barX = x1(b.key) || 0;
+          const barW = x1.bandwidth();
+          const barY = y(value);
+          const barH = innerHeight - barY;
+
+          group.append('path')
+            .attr('d', roundedTopRect(barX, barY, barW, barH, radius))
+            .attr('fill', b.color)
+            .style('cursor', 'pointer')
+            .on('mouseover', function (event) {
+              d3.select(this).attr('opacity', 0.85);
+              const containerRect = container.getBoundingClientRect();
+              const rows = bars.map(bb => `<div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#64748b">${bb.name || bb.key}</span><strong>${(Number(d[bb.key]) || 0).toLocaleString()}</strong></div>`).join('');
+              tooltip
+                .style('visibility', 'visible')
+                .style('opacity', '1')
+                .html(`<div style="font-weight:600;color:#0f172a;margin-bottom:4px">${d[dataKeyX]}</div>${rows}`)
+                .style('left', `${event.clientX - containerRect.left + 12}px`)
+                .style('top', `${event.clientY - containerRect.top + 12}px`);
+            })
+            .on('mousemove', function (event) {
+              const containerRect = container.getBoundingClientRect();
+              tooltip
+                .style('left', `${event.clientX - containerRect.left + 12}px`)
+                .style('top', `${event.clientY - containerRect.top + 12}px`);
+            })
+            .on('mouseout', function () {
+              d3.select(this).attr('opacity', 1);
+              tooltip.style('visibility', 'hidden').style('opacity', '0');
+            });
+        });
+      });
+
+      // Legend (bottom, mirrors recharts)
+      const legend = svg.append('g')
+        .attr('transform', `translate(${margin.left},${height - 18})`);
+      let offset = 0;
+      bars.forEach(b => {
+        const item = legend.append('g').attr('transform', `translate(${offset},0)`);
+        item.append('circle').attr('cx', 6).attr('cy', 0).attr('r', 5).attr('fill', b.color);
+        const text = item.append('text')
+          .attr('x', 16)
+          .attr('y', 4)
+          .attr('fill', '#64748b')
+          .style('font-size', '12px')
+          .text(b.name || b.key);
+        const node = text.node();
+        const textWidth = node ? node.getComputedTextLength() : 40;
+        offset += 16 + textWidth + 18;
+      });
+    };
+
+    draw();
+
+    const observer = new ResizeObserver(() => draw());
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [data, dataKeyX, bars]);
+
+  return (
+    <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm h-full flex flex-col group">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-sm font-medium text-gray-800 flex items-center gap-2">
+          {title}
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">d3</span>
+        </h3>
+        {onOpenChat && (
+          <button
+            onClick={() => onOpenChat(`Hablemos sobre el gráfico de "${title}". ¿Qué insights podés darme sobre estos datos?`)}
+            className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1.5 rounded-xl transition-all shadow-sm"
+            title="Preguntar al agente sobre este gráfico"
+          >
+            <Sparkles size={12} className="text-indigo-600 animate-pulse" />
+            <span>Preguntar</span>
+          </button>
+        )}
+      </div>
+      <div ref={containerRef} className="flex-1 min-h-[200px] relative">
+        <svg ref={svgRef} style={{ display: 'block' }} />
+        <div
+          ref={tooltipRef}
+          style={{
+            position: 'absolute',
+            visibility: 'hidden',
+            opacity: 0,
+            pointerEvents: 'none',
+            background: 'white',
+            border: '1px solid #e5e7eb',
+            borderRadius: '8px',
+            boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+            padding: '8px 10px',
+            fontSize: '12px',
+            transition: 'opacity 120ms',
+            zIndex: 10,
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+export type BoxPlotDatum = { seller: string, brand: string, product: string, price: number };
+
+export function D3BoxPlotWidget({ title, data, brandColors, loading, onOpenChat }: { title: string, data: BoxPlotDatum[], brandColors?: Record<string, string>, loading?: boolean, onOpenChat?: (contextPrompt?: string) => void }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  const [selectedBrand, setSelectedBrand] = useState<string>('all');
+
+  const allBrands = React.useMemo(
+    () => Array.from(new Set((data ?? []).map(d => d.brand))).sort(),
+    [data]
+  );
+
+  const filteredData = React.useMemo(
+    () => selectedBrand === 'all' ? data : (data ?? []).filter(d => d.brand === selectedBrand),
+    [data, selectedBrand]
+  );
+
+  const BOX_COLOR = '#A1A1A1';
+
+  useEffect(() => {
+    if (!filteredData || filteredData.length === 0 || !svgRef.current || !containerRef.current) return;
+
+    const container = containerRef.current;
+
+    const draw = () => {
+      const { width, height } = container.getBoundingClientRect();
+      if (width === 0 || height === 0) return;
+
+      const svg = d3.select(svgRef.current);
+      svg.selectAll('*').remove();
+      svg.attr('width', width).attr('height', height);
+
+      const margin = { top: 16, right: 24, bottom: 56, left: 72 };
+      const innerWidth = Math.max(0, width - margin.left - margin.right);
+      const innerHeight = Math.max(0, height - margin.top - margin.bottom);
+
+      const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+      const groups = d3.group(filteredData, d => d.brand);
+      const brands = Array.from(groups.keys()).sort((a, b) => {
+        const ma = d3.median(groups.get(a)!, d => d.price) ?? 0;
+        const mb = d3.median(groups.get(b)!, d => d.price) ?? 0;
+        return mb - ma;
+      });
+
+      type Stat = {
+        brand: string,
+        items: BoxPlotDatum[],
+        q1: number, median: number, q3: number,
+        lowerWhisker: number, upperWhisker: number,
+        color: string,
+      };
+
+      const stats: Stat[] = brands.map(brand => {
+        const items = groups.get(brand)!;
+        const prices = items.map(d => d.price).sort(d3.ascending);
+        const q1 = d3.quantile(prices, 0.25) ?? prices[0];
+        const median = d3.quantile(prices, 0.5) ?? prices[0];
+        const q3 = d3.quantile(prices, 0.75) ?? prices[prices.length - 1];
+        const iqr = q3 - q1;
+        const lowerFence = q1 - 1.5 * iqr;
+        const upperFence = q3 + 1.5 * iqr;
+        const lowerWhisker = prices.find(p => p >= lowerFence) ?? q1;
+        const upperPool = prices.filter(p => p <= upperFence);
+        const upperWhisker = upperPool.length ? upperPool[upperPool.length - 1] : q3;
+        return {
+          brand, items,
+          q1, median, q3,
+          lowerWhisker, upperWhisker,
+          color: brandColors?.[brand] ?? '#1a1a1a',
+        };
+      });
+
+      const x = d3.scaleBand<string>()
+        .domain(brands)
+        .range([0, innerWidth])
+        .padding(selectedBrand === 'all' ? 0.35 : 0.6);
+
+      const yMax = d3.max(filteredData, d => d.price) ?? 0;
+      const yMin = d3.min(filteredData, d => d.price) ?? 0;
+      const yPad = (yMax - yMin) * 0.1 || yMax * 0.05;
+      const y = d3.scaleLinear()
+        .domain([Math.max(0, yMin - yPad), yMax + yPad])
+        .nice()
+        .range([innerHeight, 0]);
+
+      // Gridlines
+      g.append('g')
+        .attr('class', 'grid')
+        .call(
+          d3.axisLeft(y)
+            .tickSize(-innerWidth)
+            .tickFormat(() => '')
+            .ticks(6)
+        )
+        .call(sel => sel.select('.domain').remove())
+        .call(sel => sel.selectAll('line')
+          .attr('stroke', '#f1f5f9')
+          .attr('stroke-dasharray', '3 3'));
+
+      // Y axis
+      g.append('g')
+        .call(
+          d3.axisLeft(y)
+            .ticks(6)
+            .tickFormat(d => `$${d3.format('~s')(d as number).replace('G', 'B')}`)
+        )
+        .call(sel => sel.select('.domain').remove())
+        .call(sel => sel.selectAll('line').remove())
+        .call(sel => sel.selectAll('text')
+          .attr('fill', '#64748b')
+          .style('font-size', '12px'));
+
+      g.append('text')
+        .attr('transform', 'rotate(-90)')
+        .attr('y', -54)
+        .attr('x', -innerHeight / 2)
+        .attr('text-anchor', 'middle')
+        .attr('fill', '#64748b')
+        .style('font-size', '11px')
+        .text('Precio (ARS)');
+
+      // X axis
+      g.append('g')
+        .attr('transform', `translate(0,${innerHeight})`)
+        .call(d3.axisBottom(x).tickSize(0).tickPadding(10))
+        .call(sel => sel.select('.domain').remove())
+        .call(sel => sel.selectAll('text')
+          .attr('fill', '#64748b')
+          .style('font-size', '12px')
+          .style('text-transform', 'capitalize'));
+
+      const tooltip = d3.select(tooltipRef.current);
+
+      const showTooltip = (event: MouseEvent, d: BoxPlotDatum) => {
+        const containerRect = container.getBoundingClientRect();
+        tooltip
+          .style('visibility', 'visible')
+          .style('opacity', '1')
+          .html(`
+            <div style="font-weight:600;color:#0f172a;margin-bottom:6px;max-width:260px;white-space:normal;line-height:1.3">${d.product}</div>
+            <div style="display:flex;justify-content:space-between;gap:16px;margin-bottom:2px"><span style="color:#64748b">Seller</span><strong>${d.seller}</strong></div>
+            <div style="display:flex;justify-content:space-between;gap:16px;margin-bottom:2px"><span style="color:#64748b">Brand</span><strong style="text-transform:capitalize">${d.brand}</strong></div>
+            <div style="display:flex;justify-content:space-between;gap:16px"><span style="color:#64748b">Precio</span><strong>$${d.price.toLocaleString('es-AR')}</strong></div>
+          `)
+          .style('left', `${event.clientX - containerRect.left + 12}px`)
+          .style('top', `${event.clientY - containerRect.top + 12}px`);
+      };
+
+      // Layer order: points first (behind), then boxes/whiskers on top
+      const pointsLayer = g.append('g').attr('class', 'points-layer');
+      const boxesLayer = g.append('g').attr('class', 'boxes-layer');
+
+      stats.forEach((s, brandIdx) => {
+        const bx = x(s.brand)!;
+        const bw = x.bandwidth();
+        const cx = bx + bw / 2;
+        const boxLeft = bx + bw * 0.15;
+        const boxWidth = bw * 0.7;
+        const color = s.color;
+
+        // --- Points (behind) ---
+        const jitterRange = bw * 0.55;
+        const rng = d3.randomLcg(0.42 + brandIdx * 0.137);
+        const points = s.items.map(d => ({
+          datum: d,
+          jx: cx + (rng() - 0.5) * jitterRange,
+          outlier: d.price < s.lowerWhisker || d.price > s.upperWhisker,
+        }));
+
+        pointsLayer.append('g')
+          .attr('class', `brand-points-${brandIdx}`)
+          .selectAll('circle')
+          .data(points)
+          .join('circle')
+          .attr('cx', p => p.jx)
+          .attr('cy', p => y(p.datum.price))
+          .attr('r', p => p.outlier ? 3 : 2.4)
+          .attr('fill', color)
+          .attr('fill-opacity', p => p.outlier ? 0.75 : 0.32)
+          .attr('stroke', p => p.outlier ? '#0f172a' : 'none')
+          .attr('stroke-width', p => p.outlier ? 0.5 : 0)
+          .style('cursor', 'pointer')
+          .on('mouseover', function (event, p) {
+            d3.select(this).attr('r', 6).attr('fill-opacity', 1).attr('stroke', '#0f172a').attr('stroke-width', 1);
+            showTooltip(event as MouseEvent, p.datum);
+          })
+          .on('mousemove', function (event) {
+            const containerRect = container.getBoundingClientRect();
+            tooltip
+              .style('left', `${(event as MouseEvent).clientX - containerRect.left + 12}px`)
+              .style('top', `${(event as MouseEvent).clientY - containerRect.top + 12}px`);
+          })
+          .on('mouseout', function (_event, p) {
+            d3.select(this)
+              .attr('r', p.outlier ? 3 : 2.4)
+              .attr('fill-opacity', p.outlier ? 0.75 : 0.32)
+              .attr('stroke', p.outlier ? '#0f172a' : 'none')
+              .attr('stroke-width', p.outlier ? 0.5 : 0);
+            tooltip.style('visibility', 'hidden').style('opacity', '0');
+          });
+
+        // --- Box + whiskers (on top, more prominent) ---
+        const brandG = boxesLayer.append('g')
+          .attr('class', `brand-box-${brandIdx}`)
+          .style('pointer-events', 'none');
+
+        // Vertical whisker line — white halo + gray core for contrast
+        brandG.append('line')
+          .attr('x1', cx).attr('x2', cx)
+          .attr('y1', y(s.upperWhisker)).attr('y2', y(s.lowerWhisker))
+          .attr('stroke', '#ffffff').attr('stroke-width', 5)
+          .attr('stroke-opacity', 0.7);
+        brandG.append('line')
+          .attr('x1', cx).attr('x2', cx)
+          .attr('y1', y(s.upperWhisker)).attr('y2', y(s.lowerWhisker))
+          .attr('stroke', BOX_COLOR).attr('stroke-width', 2);
+
+        // Whisker end caps (thicker, with halo)
+        const capWidth = bw * 0.36;
+        [s.upperWhisker, s.lowerWhisker].forEach(v => {
+          brandG.append('line')
+            .attr('x1', cx - capWidth / 2).attr('x2', cx + capWidth / 2)
+            .attr('y1', y(v)).attr('y2', y(v))
+            .attr('stroke', '#ffffff').attr('stroke-width', 6)
+            .attr('stroke-opacity', 0.7)
+            .attr('stroke-linecap', 'round');
+          brandG.append('line')
+            .attr('x1', cx - capWidth / 2).attr('x2', cx + capWidth / 2)
+            .attr('y1', y(v)).attr('y2', y(v))
+            .attr('stroke', BOX_COLOR).attr('stroke-width', 2.5)
+            .attr('stroke-linecap', 'round');
+        });
+
+        // Box: gray fill + gray stroke
+        brandG.append('rect')
+          .attr('x', boxLeft).attr('width', boxWidth)
+          .attr('y', y(s.q3)).attr('height', Math.max(0, y(s.q1) - y(s.q3)))
+          .attr('fill', BOX_COLOR)
+          .attr('fill-opacity', 0.25)
+          .attr('stroke', BOX_COLOR)
+          .attr('stroke-width', 2.5)
+          .attr('rx', 2);
+
+        // Median line: thick, with white halo
+        brandG.append('line')
+          .attr('x1', boxLeft - 2).attr('x2', boxLeft + boxWidth + 2)
+          .attr('y1', y(s.median)).attr('y2', y(s.median))
+          .attr('stroke', '#ffffff').attr('stroke-width', 6)
+          .attr('stroke-opacity', 0.7);
+        brandG.append('line')
+          .attr('x1', boxLeft).attr('x2', boxLeft + boxWidth)
+          .attr('y1', y(s.median)).attr('y2', y(s.median))
+          .attr('stroke', BOX_COLOR).attr('stroke-width', 3.5);
+      });
+
+      // Legend (bottom)
+      const legend = svg.append('g')
+        .attr('transform', `translate(${margin.left},${height - 14})`);
+      let offset = 0;
+      stats.forEach(s => {
+        const item = legend.append('g').attr('transform', `translate(${offset},0)`);
+        item.append('circle').attr('cx', 6).attr('cy', 0).attr('r', 5).attr('fill', s.color).attr('fill-opacity', 0.85);
+        const text = item.append('text')
+          .attr('x', 16).attr('y', 4)
+          .attr('fill', '#64748b')
+          .style('font-size', '12px')
+          .style('text-transform', 'capitalize')
+          .text(s.brand);
+        const node = text.node();
+        const textWidth = node ? node.getComputedTextLength() : 50;
+        offset += 16 + textWidth + 18;
+      });
+    };
+
+    draw();
+
+    const observer = new ResizeObserver(() => draw());
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [filteredData, brandColors, selectedBrand]);
+
+  return (
+    <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm h-full flex flex-col group">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-sm font-medium text-gray-800 flex items-center gap-2">
+          {title}
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">d3</span>
+        </h3>
+        <div className="flex items-center gap-2">
+          <select
+            value={selectedBrand}
+            onChange={(e) => setSelectedBrand(e.target.value)}
+            className="text-xs font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl px-2.5 py-1.5 shadow-sm capitalize cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-200"
+            title="Filtrar por marca"
+          >
+            <option value="all">Todas las marcas</option>
+            {allBrands.map(b => (
+              <option key={b} value={b} className="capitalize">{b}</option>
+            ))}
+          </select>
+          {onOpenChat && (
+            <button
+              onClick={() => onOpenChat(`Hablemos sobre el gráfico de "${title}"${selectedBrand !== 'all' ? ` filtrado por la marca "${selectedBrand}"` : ''}. ¿Qué insights podés darme sobre estos datos?`)}
+              className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1.5 rounded-xl transition-all shadow-sm"
+              title="Preguntar al agente sobre este gráfico"
+            >
+              <Sparkles size={12} className="text-indigo-600 animate-pulse" />
+              <span>Preguntar</span>
+            </button>
+          )}
+        </div>
+      </div>
+      <div ref={containerRef} className="flex-1 min-h-[200px] relative">
+        {loading && (
+          <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-400 z-20">
+            Cargando datos…
+          </div>
+        )}
+        <svg ref={svgRef} style={{ display: 'block' }} />
+        <div
+          ref={tooltipRef}
+          style={{
+            position: 'absolute',
+            visibility: 'hidden',
+            opacity: 0,
+            pointerEvents: 'none',
+            background: 'white',
+            border: '1px solid #e5e7eb',
+            borderRadius: '8px',
+            boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+            padding: '8px 10px',
+            fontSize: '12px',
+            transition: 'opacity 120ms',
+            zIndex: 10,
+          }}
+        />
       </div>
     </div>
   );

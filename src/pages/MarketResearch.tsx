@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ShoppingBag, TrendingUp, DollarSign } from 'lucide-react';
-import { ScoreCard, BarChartWidget, PieChartWidget, DebriefWidget } from '../components/WidgetCards';
+import { ScoreCard, BarChartWidget, D3BarChartWidget, D3BoxPlotWidget, PieChartWidget, DebriefWidget } from '../components/WidgetCards';
+import type { BoxPlotDatum } from '../components/WidgetCards';
 import ChatPanel from '../components/ChatPanel';
 import ConversationHistoryPanel from '../components/ConversationHistoryPanel';
 import type { Conversation } from '../utils/chatDb';
@@ -12,6 +13,31 @@ export default function MarketResearch() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [chatContext, setChatContext] = useState<string | undefined>(undefined);
   const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(true);
+  const [boxPlotData, setBoxPlotData] = useState<BoxPlotDatum[]>([]);
+  const [boxPlotLoading, setBoxPlotLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${import.meta.env.BASE_URL}data/box_plot.json`)
+      .then(r => r.json())
+      .then((raw: { s: string, b: string, p: string, pr: number }[]) => {
+        if (cancelled) return;
+        setBoxPlotData(raw.map(d => ({ seller: d.s, brand: d.b, product: d.p, price: d.pr })));
+        setBoxPlotLoading(false);
+      })
+      .catch(() => { if (!cancelled) setBoxPlotLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const brandColors: Record<string, string> = {
+    adidas: '#1a1a1a',
+    nike: '#FA5400',
+    puma: '#DD2C20',
+    asics: '#0064D7',
+    fila: '#1B2E72',
+    underarmour: '#6B21A8',
+    umbro: '#14B8A6',
+  };
 
   const getMultiplier = () => {
     if (timeFilter === 'quarterly') return 3;
@@ -61,14 +87,6 @@ export default function MarketResearch() {
     { brand: 'underarmour', sales: 18000 * mult },
   ];
 
-  const topRetailersData = [
-    { name: 'E-commerce Propio', sales: 25000 * mult },
-    { name: 'Dash (Distr.)', sales: 18000 * mult },
-    { name: 'Dexter (Distr.)', sales: 15000 * mult },
-    { name: 'Moov (Distr.)', sales: 12000 * mult },
-    { name: 'Grid (Distr.)', sales: 8000 * mult },
-  ];
-
   const msRetail = [
     { brand: 'adidas', share: 25 },
     { brand: 'nike', share: 30 },
@@ -103,13 +121,6 @@ export default function MarketResearch() {
     { brand: 'asics', share: 8 },
     { brand: 'fila', share: 15 },
     { brand: 'underarmour', share: 6 },
-  ];
-
-  const msJugador = [
-    { name: 'Nosotros', val: 32 },
-    { name: 'Competidor A', val: 28 },
-    { name: 'Competidor B', val: 20 },
-    { name: 'Otros', val: 20 },
   ];
 
   const pieColors = ['#ccff00', '#1a1a1a', '#4b5563', '#9ca3af', '#60a5fa', '#f87171'];
@@ -183,7 +194,7 @@ export default function MarketResearch() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-80">
-          <BarChartWidget 
+          <D3BarChartWidget
             title="Mediana de precios de zapatillas running por marca"
             data={priceData}
             dataKeyX="brand"
@@ -199,20 +210,12 @@ export default function MarketResearch() {
           />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-80 mt-4">
-          <BarChartWidget 
-            title="Top Retailers (E-commerce Propio vs Distribuidores)"
-            data={topRetailersData}
-            dataKeyX="name"
-            bars={[{ key: 'sales', name: 'Ventas', color: '#3b82f6' }]}
-            onOpenChat={handleOpenChat}
-          />
-          <PieChartWidget 
-            title="Market Snapshot: Market Share por Jugador"
-            data={msJugador}
-            dataKey="val"
-            nameKey="name"
-            colors={['#3b82f6', '#f43f5e', '#eab308', '#9ca3af']}
+        <div className="h-[640px] shrink-0 mt-4">
+          <D3BoxPlotWidget
+            title="Rango de precios de zapatillas"
+            data={boxPlotData}
+            brandColors={brandColors}
+            loading={boxPlotLoading}
             onOpenChat={handleOpenChat}
           />
         </div>
