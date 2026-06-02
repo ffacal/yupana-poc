@@ -320,7 +320,7 @@ export function D3BarChartWidget({ title, data, dataKeyX, bars, onOpenChat }: { 
   );
 }
 
-export type BoxPlotDatum = { seller: string, brand: string, product: string, price: number, sellerType: string };
+export type BoxPlotDatum = { seller: string, brand: string, product: string, price: number, sellerType: string, imageLink?: string };
 
 export function D3BoxPlotWidget({ title, data, brandColors, loading, onOpenChat }: { title: string, data: BoxPlotDatum[], brandColors?: Record<string, string>, loading?: boolean, onOpenChat?: (contextPrompt?: string) => void }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -503,12 +503,18 @@ export function D3BoxPlotWidget({ title, data, brandColors, loading, onOpenChat 
 
       const tooltip = d3.select(tooltipRef.current);
 
+      const escapeAttr = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
       const showTooltip = (event: MouseEvent, d: BoxPlotDatum) => {
         const containerRect = container.getBoundingClientRect();
+        const imgHtml = d.imageLink
+          ? `<div style="width:120px;height:120px;margin:0 auto 8px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:6px;overflow:hidden;display:flex;align-items:center;justify-content:center"><img src="${escapeAttr(d.imageLink)}" alt="" style="width:100%;height:100%;object-fit:contain" loading="lazy" onerror="this.style.display='none'"/></div>`
+          : '';
         tooltip
           .style('visibility', 'visible')
           .style('opacity', '1')
           .html(`
+            ${imgHtml}
             <div style="font-weight:600;color:#0f172a;margin-bottom:6px;max-width:260px;white-space:normal;line-height:1.3">${d.product}</div>
             <div style="display:flex;justify-content:space-between;gap:16px;margin-bottom:2px"><span style="color:#64748b">Brand</span><strong style="text-transform:capitalize">${d.brand}</strong></div>
             <div style="display:flex;justify-content:space-between;gap:16px;margin-bottom:2px"><span style="color:#64748b">Seller</span><strong>${d.seller}</strong></div>

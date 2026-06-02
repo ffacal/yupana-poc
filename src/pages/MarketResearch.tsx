@@ -21,9 +21,9 @@ export default function MarketResearch() {
     let cancelled = false;
     fetch(`${import.meta.env.BASE_URL}data/box_plot.json`)
       .then(r => r.json())
-      .then((raw: { s: string, b: string, p: string, pr: number, st: string }[]) => {
+      .then((raw: { s: string, b: string, p: string, pr: number, st: string, i?: string }[]) => {
         if (cancelled) return;
-        setBoxPlotData(raw.map(d => ({ seller: d.s, brand: d.b, product: d.p, price: d.pr, sellerType: d.st })));
+        setBoxPlotData(raw.map(d => ({ seller: d.s, brand: d.b, product: d.p, price: d.pr, sellerType: d.st, imageLink: d.i ?? '' })));
         setBoxPlotLoading(false);
       })
       .catch(() => { if (!cancelled) setBoxPlotLoading(false); });
