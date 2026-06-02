@@ -327,6 +327,7 @@ export function D3BoxPlotWidget({ title, data, brandColors, loading, onOpenChat 
   const svgRef = useRef<SVGSVGElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const [selectedBrand, setSelectedBrand] = useState<string>('all');
+  const [splitBySellerType, setSplitBySellerType] = useState<boolean>(false);
 
   const allBrands = React.useMemo(
     () => Array.from(new Set((data ?? []).map(d => d.brand))).sort(),
@@ -342,6 +343,8 @@ export function D3BoxPlotWidget({ title, data, brandColors, loading, onOpenChat 
   const BOX_COLOR = '#000000';
   const SELLER_TYPES: string[] = ['brand', 'retailer'];
   const SELLER_TYPE_LABEL: Record<string, string> = { brand: 'Marca', retailer: 'Retailer' };
+  const AGGREGATE_KEY = '__all__';
+  const activeSellerKeys: string[] = splitBySellerType ? SELLER_TYPES : [AGGREGATE_KEY];
 
   useEffect(() => {
     if (!filteredData || filteredData.length === 0 || !svgRef.current || !containerRef.current) return;
@@ -404,9 +407,15 @@ export function D3BoxPlotWidget({ title, data, brandColors, loading, onOpenChat 
 
       const stats: Stat[] = [];
       for (const brand of brands) {
-        const byType = d3.group(groups.get(brand)!, d => d.sellerType);
-        for (const st of SELLER_TYPES) {
-          const stat = computeStat(brand, st, byType.get(st) ?? []);
+        const brandItems = groups.get(brand)!;
+        if (splitBySellerType) {
+          const byType = d3.group(brandItems, d => d.sellerType);
+          for (const st of SELLER_TYPES) {
+            const stat = computeStat(brand, st, byType.get(st) ?? []);
+            if (stat) stats.push(stat);
+          }
+        } else {
+          const stat = computeStat(brand, AGGREGATE_KEY, brandItems);
           if (stat) stats.push(stat);
         }
       }
@@ -417,9 +426,9 @@ export function D3BoxPlotWidget({ title, data, brandColors, loading, onOpenChat 
         .padding(selectedBrand === 'all' ? 0.2 : 0.45);
 
       const xInner = d3.scaleBand<string>()
-        .domain(SELLER_TYPES)
+        .domain(activeSellerKeys)
         .range([0, x.bandwidth()])
-        .padding(0.18);
+        .padding(splitBySellerType ? 0.18 : 0);
 
       const yMax = d3.max(filteredData, d => d.price) ?? 0;
       const yMin = d3.min(filteredData, d => d.price) ?? 0;
@@ -465,27 +474,29 @@ export function D3BoxPlotWidget({ title, data, brandColors, loading, onOpenChat 
         .style('font-size', '11px')
         .text('Precio (ARS)');
 
-      // X sub-axis: seller_type under each box
-      const subAxis = g.append('g').attr('transform', `translate(0,${innerHeight})`);
-      stats.forEach(s => {
-        const bx = x(s.brand)!;
-        const subX = xInner(s.sellerType)!;
-        subAxis.append('text')
-          .attr('x', bx + subX + xInner.bandwidth() / 2)
-          .attr('y', 14)
-          .attr('text-anchor', 'middle')
-          .attr('fill', '#94a3b8')
-          .style('font-size', '10px')
-          .text(SELLER_TYPE_LABEL[s.sellerType] ?? s.sellerType);
-      });
+      // X sub-axis: seller_type under each box (only when split)
+      if (splitBySellerType) {
+        const subAxis = g.append('g').attr('transform', `translate(0,${innerHeight})`);
+        stats.forEach(s => {
+          const bx = x(s.brand)!;
+          const subX = xInner(s.sellerType)!;
+          subAxis.append('text')
+            .attr('x', bx + subX + xInner.bandwidth() / 2)
+            .attr('y', 14)
+            .attr('text-anchor', 'middle')
+            .attr('fill', '#94a3b8')
+            .style('font-size', '10px')
+            .text(SELLER_TYPE_LABEL[s.sellerType] ?? s.sellerType);
+        });
+      }
 
-      // X axis: brand labels (below seller_type labels)
+      // X axis: brand labels (below seller_type labels when split)
       g.append('g')
-        .attr('transform', `translate(0,${innerHeight + 22})`)
+        .attr('transform', `translate(0,${innerHeight + (splitBySellerType ? 22 : 4)})`)
         .call(d3.axisBottom(x).tickSize(0).tickPadding(4))
         .call(sel => sel.select('.domain').remove())
         .call(sel => sel.selectAll('text')
-          .attr('fill', '#0f172a')
+          .attr('fill', '#94a3b8') //'#0f172a'
           .style('font-size', '12px')
           .style('font-weight', '400')
           .style('text-transform', 'capitalize'));
@@ -499,8 +510,8 @@ export function D3BoxPlotWidget({ title, data, brandColors, loading, onOpenChat 
           .style('opacity', '1')
           .html(`
             <div style="font-weight:600;color:#0f172a;margin-bottom:6px;max-width:260px;white-space:normal;line-height:1.3">${d.product}</div>
-            <div style="display:flex;justify-content:space-between;gap:16px;margin-bottom:2px"><span style="color:#64748b">Seller</span><strong>${d.seller}</strong></div>
             <div style="display:flex;justify-content:space-between;gap:16px;margin-bottom:2px"><span style="color:#64748b">Brand</span><strong style="text-transform:capitalize">${d.brand}</strong></div>
+            <div style="display:flex;justify-content:space-between;gap:16px;margin-bottom:2px"><span style="color:#64748b">Seller</span><strong>${d.seller}</strong></div>
             <div style="display:flex;justify-content:space-between;gap:16px;margin-bottom:2px"><span style="color:#64748b">Tipo</span><strong>${SELLER_TYPE_LABEL[d.sellerType] ?? d.sellerType}</strong></div>
             <div style="display:flex;justify-content:space-between;gap:16px"><span style="color:#64748b">Precio</span><strong>$${d.price.toLocaleString('es-AR')}</strong></div>
           `)
@@ -604,7 +615,7 @@ export function D3BoxPlotWidget({ title, data, brandColors, loading, onOpenChat 
     const observer = new ResizeObserver(() => draw());
     observer.observe(container);
     return () => observer.disconnect();
-  }, [filteredData, brandColors, selectedBrand]);
+  }, [filteredData, brandColors, selectedBrand, splitBySellerType]);
 
   return (
     <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm h-full flex flex-col group">
@@ -614,6 +625,17 @@ export function D3BoxPlotWidget({ title, data, brandColors, loading, onOpenChat 
           <span className="text-[10px] font-semibold uppercase tracking-wide text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">d3</span>
         </h3>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setSplitBySellerType(v => !v)}
+            className={`text-xs font-medium border rounded-xl px-2.5 py-1.5 shadow-sm transition-colors ${
+              splitBySellerType
+                ? 'text-indigo-700 bg-indigo-50 border-indigo-200 hover:bg-indigo-100'
+                : 'text-gray-700 bg-gray-50 border-gray-200 hover:bg-gray-100'
+            }`}
+            title={splitBySellerType ? 'Ocultar apertura por tipo de seller' : 'Abrir por tipo de seller (Marca / Retailer)'}
+          >
+            {splitBySellerType ? 'Ocultar tipo de seller' : 'Abrir por tipo de seller'}
+          </button>
           <select
             value={selectedBrand}
             onChange={(e) => setSelectedBrand(e.target.value)}
