@@ -334,10 +334,61 @@ export function D3BoxPlotWidget({ title, data, brandColors, loading, onOpenChat 
     [data]
   );
 
-  const filteredData = React.useMemo(
-    () => selectedBrand === 'all' ? data : (data ?? []).filter(d => d.brand === selectedBrand),
-    [data, selectedBrand]
-  );
+  const PRICE_STEP = 10000;
+
+  const priceBounds = React.useMemo(() => {
+    const prices = (data ?? []).map(d => d.price);
+    if (prices.length === 0) return { min: 0, max: 0 };
+    const rawMin = Math.min(...prices);
+    const rawMax = Math.max(...prices);
+    const min = Math.floor(rawMin / PRICE_STEP) * PRICE_STEP;
+    const max = Math.ceil(rawMax / PRICE_STEP) * PRICE_STEP;
+    return { min, max: max === min ? min + PRICE_STEP : max };
+  }, [data]);
+
+  const [priceRange, setPriceRange] = useState<[number, number]>([priceBounds.min, priceBounds.max]);
+  const [minDraft, setMinDraft] = useState<string>(String(priceBounds.min));
+  const [maxDraft, setMaxDraft] = useState<string>(String(priceBounds.max));
+
+  useEffect(() => {
+    setPriceRange([priceBounds.min, priceBounds.max]);
+  }, [priceBounds.min, priceBounds.max]);
+
+  useEffect(() => {
+    setMinDraft(String(priceRange[0]));
+    setMaxDraft(String(priceRange[1]));
+  }, [priceRange]);
+
+  const snapToStep = (n: number) => Math.round(n / PRICE_STEP) * PRICE_STEP;
+
+  const commitMinPrice = (raw: string) => {
+    const n = Number(raw);
+    if (!Number.isFinite(n)) { setMinDraft(String(priceRange[0])); return; }
+    const snapped = snapToStep(n);
+    const clamped = Math.max(priceBounds.min, Math.min(snapped, priceRange[1] - PRICE_STEP));
+    setPriceRange([clamped, priceRange[1]]);
+  };
+
+  const commitMaxPrice = (raw: string) => {
+    const n = Number(raw);
+    if (!Number.isFinite(n)) { setMaxDraft(String(priceRange[1])); return; }
+    const snapped = snapToStep(n);
+    const clamped = Math.min(priceBounds.max, Math.max(snapped, priceRange[0] + PRICE_STEP));
+    setPriceRange([priceRange[0], clamped]);
+  };
+
+  const filteredData = React.useMemo(() => {
+    const base = selectedBrand === 'all' ? (data ?? []) : (data ?? []).filter(d => d.brand === selectedBrand);
+    return base.filter(d => d.price >= priceRange[0] && d.price <= priceRange[1]);
+  }, [data, selectedBrand, priceRange]);
+
+  const formatPrice = (v: number) => `$${v.toLocaleString('es-AR')}`;
+  const isPriceFiltered = priceRange[0] !== priceBounds.min || priceRange[1] !== priceBounds.max;
+  const pricePct = (v: number) => {
+    const span = priceBounds.max - priceBounds.min;
+    if (span <= 0) return 0;
+    return ((v - priceBounds.min) / span) * 100;
+  };
 
   const WHISKER_COLOR = '#000000';
   const BOX_COLOR = '#000000';
@@ -655,7 +706,7 @@ export function D3BoxPlotWidget({ title, data, brandColors, loading, onOpenChat 
           </select>
           {onOpenChat && (
             <button
-              onClick={() => onOpenChat(`Hablemos sobre el gráfico de "${title}"${selectedBrand !== 'all' ? ` filtrado por la marca "${selectedBrand}"` : ''}. ¿Qué insights podés darme sobre estos datos?`)}
+              onClick={() => onOpenChat(`Hablemos sobre el gráfico de "${title}"${selectedBrand !== 'all' ? ` filtrado por la marca "${selectedBrand}"` : ''}${isPriceFiltered ? ` y rango de precio ${formatPrice(priceRange[0])} - ${formatPrice(priceRange[1])}` : ''}. ¿Qué insights podés darme sobre estos datos?`)}
               className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1.5 rounded-xl transition-all shadow-sm"
               title="Preguntar al agente sobre este gráfico"
             >
@@ -665,10 +716,101 @@ export function D3BoxPlotWidget({ title, data, brandColors, loading, onOpenChat 
           )}
         </div>
       </div>
+      {priceBounds.max > priceBounds.min && (
+        <div className="mb-4 flex items-center gap-3">
+          <div className="flex items-center gap-2 text-[11px] font-medium text-gray-500 whitespace-nowrap">
+            <span>Precio</span>
+            <div className="flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 focus-within:ring-2 focus-within:ring-indigo-200 focus-within:border-indigo-300">
+              <span className="text-gray-400">$</span>
+              <input
+                type="number"
+                min={priceBounds.min}
+                max={priceBounds.max}
+                step={PRICE_STEP}
+                value={minDraft}
+                onChange={(e) => setMinDraft(e.target.value)}
+                onBlur={(e) => commitMinPrice(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                  if (e.key === 'Escape') { setMinDraft(String(priceRange[0])); (e.target as HTMLInputElement).blur(); }
+                }}
+                className="w-20 bg-transparent text-gray-700 tabular-nums text-right focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                aria-label="Precio mínimo (manual)"
+              />
+            </div>
+            <span className="text-gray-300">—</span>
+            <div className="flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 focus-within:ring-2 focus-within:ring-indigo-200 focus-within:border-indigo-300">
+              <span className="text-gray-400">$</span>
+              <input
+                type="number"
+                min={priceBounds.min}
+                max={priceBounds.max}
+                step={PRICE_STEP}
+                value={maxDraft}
+                onChange={(e) => setMaxDraft(e.target.value)}
+                onBlur={(e) => commitMaxPrice(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                  if (e.key === 'Escape') { setMaxDraft(String(priceRange[1])); (e.target as HTMLInputElement).blur(); }
+                }}
+                className="w-20 bg-transparent text-gray-700 tabular-nums text-right focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                aria-label="Precio máximo (manual)"
+              />
+            </div>
+          </div>
+          <div className="relative flex-1 h-5 select-none">
+            <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-1 rounded-full bg-gray-200" />
+            <div
+              className="absolute top-1/2 -translate-y-1/2 h-1 rounded-full bg-indigo-500"
+              style={{ left: `${pricePct(priceRange[0])}%`, right: `${100 - pricePct(priceRange[1])}%` }}
+            />
+            <input
+              type="range"
+              min={priceBounds.min}
+              max={priceBounds.max}
+              step={PRICE_STEP}
+              value={priceRange[0]}
+              onChange={(e) => {
+                const v = Math.min(Number(e.target.value), priceRange[1] - PRICE_STEP);
+                setPriceRange([Math.max(priceBounds.min, v), priceRange[1]]);
+              }}
+              className="d3-range-slider absolute inset-0 w-full h-5 appearance-none bg-transparent pointer-events-none"
+              aria-label="Precio mínimo"
+            />
+            <input
+              type="range"
+              min={priceBounds.min}
+              max={priceBounds.max}
+              step={PRICE_STEP}
+              value={priceRange[1]}
+              onChange={(e) => {
+                const v = Math.max(Number(e.target.value), priceRange[0] + PRICE_STEP);
+                setPriceRange([priceRange[0], Math.min(priceBounds.max, v)]);
+              }}
+              className="d3-range-slider absolute inset-0 w-full h-5 appearance-none bg-transparent pointer-events-none"
+              aria-label="Precio máximo"
+            />
+          </div>
+          {isPriceFiltered && (
+            <button
+              onClick={() => setPriceRange([priceBounds.min, priceBounds.max])}
+              className="text-[11px] font-medium text-gray-500 hover:text-gray-800 underline-offset-2 hover:underline"
+              title="Restablecer rango de precio"
+            >
+              Reset
+            </button>
+          )}
+        </div>
+      )}
       <div ref={containerRef} className="flex-1 min-h-[200px] relative">
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-400 z-20">
             Cargando datos…
+          </div>
+        )}
+        {!loading && filteredData.length === 0 && (
+          <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-400 z-20">
+            No hay datos en el rango seleccionado
           </div>
         )}
         <svg ref={svgRef} style={{ display: 'block' }} />
