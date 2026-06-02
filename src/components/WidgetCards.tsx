@@ -320,7 +320,7 @@ export function D3BarChartWidget({ title, data, dataKeyX, bars, onOpenChat }: { 
   );
 }
 
-export type BoxPlotDatum = { seller: string, brand: string, product: string, price: number };
+export type BoxPlotDatum = { seller: string, brand: string, product: string, price: number, sellerType: string };
 
 export function D3BoxPlotWidget({ title, data, brandColors, loading, onOpenChat }: { title: string, data: BoxPlotDatum[], brandColors?: Record<string, string>, loading?: boolean, onOpenChat?: (contextPrompt?: string) => void }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -338,12 +338,22 @@ export function D3BoxPlotWidget({ title, data, brandColors, loading, onOpenChat 
     [data, selectedBrand]
   );
 
-  const BOX_COLOR = '#A1A1A1';
+  const WHISKER_COLOR = '#000000';
+  const BOX_COLOR = '#000000';
+  const SELLER_TYPES: string[] = ['brand', 'retailer'];
+  const SELLER_TYPE_LABEL: Record<string, string> = { brand: 'Marca', retailer: 'Retailer' };
 
   useEffect(() => {
     if (!filteredData || filteredData.length === 0 || !svgRef.current || !containerRef.current) return;
 
     const container = containerRef.current;
+
+    const lighten = (hex: string, dl: number) => {
+      const c = d3.hsl(hex);
+      c.l = Math.min(0.95, c.l + dl);
+      c.s = Math.max(0.1, c.s - dl * 0.2);
+      return c.formatHex();
+    };
 
     const draw = () => {
       const { width, height } = container.getBoundingClientRect();
@@ -353,7 +363,7 @@ export function D3BoxPlotWidget({ title, data, brandColors, loading, onOpenChat 
       svg.selectAll('*').remove();
       svg.attr('width', width).attr('height', height);
 
-      const margin = { top: 16, right: 24, bottom: 56, left: 72 };
+      const margin = { top: 16, right: 24, bottom: 76, left: 72 };
       const innerWidth = Math.max(0, width - margin.left - margin.right);
       const innerHeight = Math.max(0, height - margin.top - margin.bottom);
 
@@ -368,14 +378,15 @@ export function D3BoxPlotWidget({ title, data, brandColors, loading, onOpenChat 
 
       type Stat = {
         brand: string,
+        sellerType: string,
         items: BoxPlotDatum[],
         q1: number, median: number, q3: number,
         lowerWhisker: number, upperWhisker: number,
         color: string,
       };
 
-      const stats: Stat[] = brands.map(brand => {
-        const items = groups.get(brand)!;
+      const computeStat = (brand: string, sellerType: string, items: BoxPlotDatum[]): Stat | null => {
+        if (!items || items.length === 0) return null;
         const prices = items.map(d => d.price).sort(d3.ascending);
         const q1 = d3.quantile(prices, 0.25) ?? prices[0];
         const median = d3.quantile(prices, 0.5) ?? prices[0];
@@ -386,18 +397,29 @@ export function D3BoxPlotWidget({ title, data, brandColors, loading, onOpenChat 
         const lowerWhisker = prices.find(p => p >= lowerFence) ?? q1;
         const upperPool = prices.filter(p => p <= upperFence);
         const upperWhisker = upperPool.length ? upperPool[upperPool.length - 1] : q3;
-        return {
-          brand, items,
-          q1, median, q3,
-          lowerWhisker, upperWhisker,
-          color: brandColors?.[brand] ?? '#1a1a1a',
-        };
-      });
+        const baseColor = brandColors?.[brand] ?? '#1a1a1a';
+        const color = sellerType === 'retailer' ? baseColor : baseColor;
+        return { brand, sellerType, items, q1, median, q3, lowerWhisker, upperWhisker, color };
+      };
+
+      const stats: Stat[] = [];
+      for (const brand of brands) {
+        const byType = d3.group(groups.get(brand)!, d => d.sellerType);
+        for (const st of SELLER_TYPES) {
+          const stat = computeStat(brand, st, byType.get(st) ?? []);
+          if (stat) stats.push(stat);
+        }
+      }
 
       const x = d3.scaleBand<string>()
         .domain(brands)
         .range([0, innerWidth])
-        .padding(selectedBrand === 'all' ? 0.35 : 0.6);
+        .padding(selectedBrand === 'all' ? 0.2 : 0.45);
+
+      const xInner = d3.scaleBand<string>()
+        .domain(SELLER_TYPES)
+        .range([0, x.bandwidth()])
+        .padding(0.18);
 
       const yMax = d3.max(filteredData, d => d.price) ?? 0;
       const yMin = d3.min(filteredData, d => d.price) ?? 0;
@@ -443,14 +465,29 @@ export function D3BoxPlotWidget({ title, data, brandColors, loading, onOpenChat 
         .style('font-size', '11px')
         .text('Precio (ARS)');
 
-      // X axis
+      // X sub-axis: seller_type under each box
+      const subAxis = g.append('g').attr('transform', `translate(0,${innerHeight})`);
+      stats.forEach(s => {
+        const bx = x(s.brand)!;
+        const subX = xInner(s.sellerType)!;
+        subAxis.append('text')
+          .attr('x', bx + subX + xInner.bandwidth() / 2)
+          .attr('y', 14)
+          .attr('text-anchor', 'middle')
+          .attr('fill', '#94a3b8')
+          .style('font-size', '10px')
+          .text(SELLER_TYPE_LABEL[s.sellerType] ?? s.sellerType);
+      });
+
+      // X axis: brand labels (below seller_type labels)
       g.append('g')
-        .attr('transform', `translate(0,${innerHeight})`)
-        .call(d3.axisBottom(x).tickSize(0).tickPadding(10))
+        .attr('transform', `translate(0,${innerHeight + 22})`)
+        .call(d3.axisBottom(x).tickSize(0).tickPadding(4))
         .call(sel => sel.select('.domain').remove())
         .call(sel => sel.selectAll('text')
-          .attr('fill', '#64748b')
+          .attr('fill', '#0f172a')
           .style('font-size', '12px')
+          .style('font-weight', '400')
           .style('text-transform', 'capitalize'));
 
       const tooltip = d3.select(tooltipRef.current);
@@ -464,6 +501,7 @@ export function D3BoxPlotWidget({ title, data, brandColors, loading, onOpenChat 
             <div style="font-weight:600;color:#0f172a;margin-bottom:6px;max-width:260px;white-space:normal;line-height:1.3">${d.product}</div>
             <div style="display:flex;justify-content:space-between;gap:16px;margin-bottom:2px"><span style="color:#64748b">Seller</span><strong>${d.seller}</strong></div>
             <div style="display:flex;justify-content:space-between;gap:16px;margin-bottom:2px"><span style="color:#64748b">Brand</span><strong style="text-transform:capitalize">${d.brand}</strong></div>
+            <div style="display:flex;justify-content:space-between;gap:16px;margin-bottom:2px"><span style="color:#64748b">Tipo</span><strong>${SELLER_TYPE_LABEL[d.sellerType] ?? d.sellerType}</strong></div>
             <div style="display:flex;justify-content:space-between;gap:16px"><span style="color:#64748b">Precio</span><strong>$${d.price.toLocaleString('es-AR')}</strong></div>
           `)
           .style('left', `${event.clientX - containerRect.left + 12}px`)
@@ -474,17 +512,18 @@ export function D3BoxPlotWidget({ title, data, brandColors, loading, onOpenChat 
       const pointsLayer = g.append('g').attr('class', 'points-layer');
       const boxesLayer = g.append('g').attr('class', 'boxes-layer');
 
-      stats.forEach((s, brandIdx) => {
+      stats.forEach((s, statIdx) => {
         const bx = x(s.brand)!;
-        const bw = x.bandwidth();
-        const cx = bx + bw / 2;
-        const boxLeft = bx + bw * 0.15;
-        const boxWidth = bw * 0.7;
+        const subX = xInner(s.sellerType)!;
+        const subW = xInner.bandwidth();
+        const cx = bx + subX + subW / 2;
+        const boxLeft = bx + subX + subW * 0.1;
+        const boxWidth = subW * 0.8;
         const color = s.color;
 
         // --- Points (behind) ---
-        const jitterRange = bw * 0.55;
-        const rng = d3.randomLcg(0.42 + brandIdx * 0.137);
+        const jitterRange = subW * 0.65;
+        const rng = d3.randomLcg(0.42 + statIdx * 0.137);
         const points = s.items.map(d => ({
           datum: d,
           jx: cx + (rng() - 0.5) * jitterRange,
@@ -492,7 +531,7 @@ export function D3BoxPlotWidget({ title, data, brandColors, loading, onOpenChat 
         }));
 
         pointsLayer.append('g')
-          .attr('class', `brand-points-${brandIdx}`)
+          .attr('class', `stat-points-${statIdx}`)
           .selectAll('circle')
           .data(points)
           .join('circle')
@@ -525,74 +564,38 @@ export function D3BoxPlotWidget({ title, data, brandColors, loading, onOpenChat 
 
         // --- Box + whiskers (on top, more prominent) ---
         const brandG = boxesLayer.append('g')
-          .attr('class', `brand-box-${brandIdx}`)
+          .attr('class', `stat-box-${statIdx}`)
           .style('pointer-events', 'none');
 
-        // Vertical whisker line — white halo + gray core for contrast
+        // Vertical whisker line — thin, black
         brandG.append('line')
           .attr('x1', cx).attr('x2', cx)
           .attr('y1', y(s.upperWhisker)).attr('y2', y(s.lowerWhisker))
-          .attr('stroke', '#ffffff').attr('stroke-width', 5)
-          .attr('stroke-opacity', 0.7);
-        brandG.append('line')
-          .attr('x1', cx).attr('x2', cx)
-          .attr('y1', y(s.upperWhisker)).attr('y2', y(s.lowerWhisker))
-          .attr('stroke', BOX_COLOR).attr('stroke-width', 2);
+          .attr('stroke', WHISKER_COLOR).attr('stroke-width', 1);
 
-        // Whisker end caps (thicker, with halo)
-        const capWidth = bw * 0.36;
+        // Whisker end caps — thin, black
+        const capWidth = subW * 0.42;
         [s.upperWhisker, s.lowerWhisker].forEach(v => {
           brandG.append('line')
             .attr('x1', cx - capWidth / 2).attr('x2', cx + capWidth / 2)
             .attr('y1', y(v)).attr('y2', y(v))
-            .attr('stroke', '#ffffff').attr('stroke-width', 6)
-            .attr('stroke-opacity', 0.7)
-            .attr('stroke-linecap', 'round');
-          brandG.append('line')
-            .attr('x1', cx - capWidth / 2).attr('x2', cx + capWidth / 2)
-            .attr('y1', y(v)).attr('y2', y(v))
-            .attr('stroke', BOX_COLOR).attr('stroke-width', 2.5)
-            .attr('stroke-linecap', 'round');
+            .attr('stroke', WHISKER_COLOR).attr('stroke-width', 1);
         });
 
-        // Box: gray fill + gray stroke
+        // Box: variant-colored fill + variant-colored stroke
         brandG.append('rect')
           .attr('x', boxLeft).attr('width', boxWidth)
           .attr('y', y(s.q3)).attr('height', Math.max(0, y(s.q1) - y(s.q3)))
-          .attr('fill', BOX_COLOR)
-          .attr('fill-opacity', 0.25)
+          .attr('fill', color)
+          .attr('fill-opacity', 0.3)
           .attr('stroke', BOX_COLOR)
-          .attr('stroke-width', 2.5)
-          .attr('rx', 2);
+          .attr('stroke-width', 1.25);
 
-        // Median line: thick, with white halo
-        brandG.append('line')
-          .attr('x1', boxLeft - 2).attr('x2', boxLeft + boxWidth + 2)
-          .attr('y1', y(s.median)).attr('y2', y(s.median))
-          .attr('stroke', '#ffffff').attr('stroke-width', 6)
-          .attr('stroke-opacity', 0.7);
+        // Median line — thin, black
         brandG.append('line')
           .attr('x1', boxLeft).attr('x2', boxLeft + boxWidth)
           .attr('y1', y(s.median)).attr('y2', y(s.median))
-          .attr('stroke', BOX_COLOR).attr('stroke-width', 3.5);
-      });
-
-      // Legend (bottom)
-      const legend = svg.append('g')
-        .attr('transform', `translate(${margin.left},${height - 14})`);
-      let offset = 0;
-      stats.forEach(s => {
-        const item = legend.append('g').attr('transform', `translate(${offset},0)`);
-        item.append('circle').attr('cx', 6).attr('cy', 0).attr('r', 5).attr('fill', s.color).attr('fill-opacity', 0.85);
-        const text = item.append('text')
-          .attr('x', 16).attr('y', 4)
-          .attr('fill', '#64748b')
-          .style('font-size', '12px')
-          .style('text-transform', 'capitalize')
-          .text(s.brand);
-        const node = text.node();
-        const textWidth = node ? node.getComputedTextLength() : 50;
-        offset += 16 + textWidth + 18;
+          .attr('stroke', BOX_COLOR).attr('stroke-width', 1.5);
       });
     };
 

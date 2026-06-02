@@ -5,6 +5,7 @@ import type { BoxPlotDatum } from '../components/WidgetCards';
 import ChatPanel from '../components/ChatPanel';
 import ConversationHistoryPanel from '../components/ConversationHistoryPanel';
 import type { Conversation } from '../utils/chatDb';
+import { BRAND_COLORS } from '../constants/brands';
 
 export default function MarketResearch() {
   const [timeFilter, setTimeFilter] = useState<'monthly' | 'quarterly' | 'yearly'>('monthly');
@@ -20,24 +21,14 @@ export default function MarketResearch() {
     let cancelled = false;
     fetch(`${import.meta.env.BASE_URL}data/box_plot.json`)
       .then(r => r.json())
-      .then((raw: { s: string, b: string, p: string, pr: number }[]) => {
+      .then((raw: { s: string, b: string, p: string, pr: number, st: string }[]) => {
         if (cancelled) return;
-        setBoxPlotData(raw.map(d => ({ seller: d.s, brand: d.b, product: d.p, price: d.pr })));
+        setBoxPlotData(raw.map(d => ({ seller: d.s, brand: d.b, product: d.p, price: d.pr, sellerType: d.st })));
         setBoxPlotLoading(false);
       })
       .catch(() => { if (!cancelled) setBoxPlotLoading(false); });
     return () => { cancelled = true; };
   }, []);
-
-  const brandColors: Record<string, string> = {
-    adidas: '#1a1a1a',
-    nike: '#FA5400',
-    puma: '#DD2C20',
-    asics: '#0064D7',
-    fila: '#1B2E72',
-    underarmour: '#6B21A8',
-    umbro: '#14B8A6',
-  };
 
   const getMultiplier = () => {
     if (timeFilter === 'quarterly') return 3;
@@ -214,7 +205,7 @@ export default function MarketResearch() {
           <D3BoxPlotWidget
             title="Rango de precios de zapatillas"
             data={boxPlotData}
-            brandColors={brandColors}
+            brandColors={BRAND_COLORS}
             loading={boxPlotLoading}
             onOpenChat={handleOpenChat}
           />
